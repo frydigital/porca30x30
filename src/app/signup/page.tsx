@@ -117,14 +117,14 @@ export default function SignupPage() {
               </div>
 
               <div className="space-y-2">
-                <Label className="text-muted-foreground" htmlFor="email">Password</Label>
+                <Label className="text-muted-foreground" htmlFor="password">Password</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="email"
-                    type="email"
+                    id="password"
+                    type="password"
                     placeholder="min 8 characters"
-                    value={email}
+                    value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 shadow-none"
                     required
