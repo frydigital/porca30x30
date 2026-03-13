@@ -1,10 +1,10 @@
-import { createClient } from "@/lib/supabase/server";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import Link from "next/link";
-import { Flame, Trophy, Medal, Award } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { LeaderboardEntry } from "@/lib/types";
+import { Award, Flame, Medal, Trophy } from "lucide-react";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -36,11 +36,10 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b border-gray-300">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Flame className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold">30x30 Challenge</span>
+            <span className="text-xl font-bold">30x30</span>
           </div>
           <nav className="flex items-center gap-4">
             {user ? (
@@ -57,28 +56,22 @@ export default async function Home() {
       </header>
 
       {/* Hero */}
-      <section className="py-16 px-4 text-center bg-gradient-to-b from-orange-50 to-background dark:from-orange-950/20">
+      <section className="py-16 px-4 text-center bg-muted">
         <div className="container mx-auto max-w-3xl">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            30 Days. 30 Minutes.
-          </h1>
-          <p className="text-xl text-muted-foreground mb-8">
-            Build your fitness habit with the 30x30 challenge. Exercise for at least
-            30 minutes every day for 30 days. Track your streak and compete with
-            others!
-          </p>
+            <h1 className="text-xl font-semibold py-8">Current Challenges</h1>
+          
           {!user && (
-            <Button asChild size="lg" className="text-lg px-8">
-              <Link href="/login">Join the Challenge</Link>
+            <Button asChild size="lg">
+              <Link href="/login">PORCA</Link>
             </Button>
           )}
         </div>
       </section>
 
       {/* Leaderboard */}
-      <section className="py-12 px-4">
+      <section className="py-12 px-4 bg-muted">
         <div className="container mx-auto max-w-4xl">
-          <Card>
+      <Card className="w-full border border-gray-300 shadow">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-yellow-500" />
@@ -149,49 +142,12 @@ export default async function Home() {
             </CardContent>
           </Card>
 
-          {/* How it works */}
-          <div className="mt-12 grid md:grid-cols-3 gap-6">
-            <Card>
-              <CardHeader>
-                <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-2">
-                  <span className="text-2xl font-bold text-blue-600">1</span>
-                </div>
-                <CardTitle>Connect Strava</CardTitle>
-                <CardDescription>
-                  Link your Strava account to automatically track your activities
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mb-2">
-                  <span className="text-2xl font-bold text-green-600">2</span>
-                </div>
-                <CardTitle>Stay Active</CardTitle>
-                <CardDescription>
-                  Exercise for at least 30 minutes every day to maintain your streak
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <div className="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-900 flex items-center justify-center mb-2">
-                  <span className="text-2xl font-bold text-orange-600">3</span>
-                </div>
-                <CardTitle>Track Progress</CardTitle>
-                <CardDescription>
-                  Watch your streak grow and compete with others on the leaderboard
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          </div>
+          
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t py-8 mt-12">
+      <footer className="border-t border-gray-300 py-8 mt-12 bg-muted">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
           <p>© 30x30 Challenge</p>
         </div>

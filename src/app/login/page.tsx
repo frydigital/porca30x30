@@ -1,19 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { createClient } from "@/lib/supabase/client";
+import { CheckCircle, Loader2, Mail } from "lucide-react";
 import Link from "next/link";
-import { Mail, Loader2, CheckCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const router = useRouter();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,34 +26,32 @@ export default function LoginPage() {
 
     const supabase = createClient();
     
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
+      password,
     });
 
     if (error) {
       setError(error.message);
       setLoading(false);
     } else {
-      setSent(true);
       setLoading(false);
+      router.push("/dashboard");
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-muted p-4">
+      <Card className="w-full max-w-md border border-gray-300 shadow">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">30x30 Challenge</CardTitle>
+          <CardTitle className="text-2xl font-bold">30x30</CardTitle>
           <CardDescription>
-            Track your 30-minute daily activity streak for 30 days
+            Login
           </CardDescription>
         </CardHeader>
         <CardContent>
           {sent ? (
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-8">
               <CheckCircle className="w-16 h-16 mx-auto text-green-500" />
               <h3 className="text-lg font-medium">Check your email!</h3>
               <p className="text-muted-foreground">
@@ -67,9 +69,9 @@ export default function LoginPage() {
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleLogin} className="space-y-8">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label className="text-muted-foreground" htmlFor="email">Email</Label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -78,7 +80,21 @@ export default function LoginPage() {
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 shadow-none"
+                    required
+                    disabled={loading}
+                  />
+                </div>
+                <Label className="text-muted-foreground" htmlFor="email">Password</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="min 8 characters"
+                    value={email}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 shadow-none"
                     required
                     disabled={loading}
                   />
@@ -97,20 +113,16 @@ export default function LoginPage() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending magic link...
+                    Logging In...
                   </>
                 ) : (
-                  "Sign in with Magic Link"
+                  "Sign in"
                 )}
               </Button>
 
-              <p className="text-center text-sm text-muted-foreground">
-                No password needed. We&apos;ll send you a link to sign in.
-              </p>
-
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+                  <span className="w-full border-t border-gray-300" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
                   <span className="bg-background px-2 text-muted-foreground">
@@ -119,7 +131,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <Button type="button" variant="outline" className="w-full" asChild>
+              <Button type="button" variant="outline" className="w-full shadow-none" asChild>
                 <Link href="/signup">
                   Create an account
                 </Link>
@@ -129,7 +141,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <Link href="/" className="text-sm text-muted-foreground hover:text-foreground">
-              ← Back to Leaderboard
+              ← Back
             </Link>
           </div>
         </CardContent>
