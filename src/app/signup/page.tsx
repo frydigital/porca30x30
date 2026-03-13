@@ -9,6 +9,19 @@ import { CheckCircle, Loader2, Mail, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+function findCurrentEnv() {
+  let envUrl
+  const vercel = process.env.VERCEL!
+
+  if (vercel) {
+    envUrl = `https://` + process.env.VERCEL_URL
+  } else {
+    envUrl = window.location.origin
+  }
+
+  return envUrl
+}
+
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState('');
@@ -16,6 +29,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const envUrl = findCurrentEnv()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +48,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-      emailRedirectTo: `${window.location.origin}/auth/callback`,
+      emailRedirectTo: `${envUrl}/auth/callback`,
       data: {
         username: username || null,
       },

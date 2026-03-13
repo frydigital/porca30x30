@@ -34,9 +34,9 @@ export default async function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-muted">
       {/* Header */}
-      <header className="border-b border-gray-300">
+      <header className="border-b border-gray-300 bg-background">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-xl font-bold">30x30</span>
@@ -55,8 +55,9 @@ export default async function Home() {
         </div>
       </header>
 
+      
       {/* Hero */}
-      <section className="py-16 px-4 text-center bg-muted">
+      <section className="h-full flex px-4 text-center bg-muted">
         <div className="container mx-auto max-w-3xl">
             <h1 className="text-xl font-semibold py-8">Current Challenges</h1>
           
@@ -147,7 +148,7 @@ export default async function Home() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-gray-300 py-8 mt-12 bg-muted">
+      <footer className="border-t border-gray-300 py-8 mt-12 bg-background">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
           <p>© 30x30 Challenge</p>
         </div>
