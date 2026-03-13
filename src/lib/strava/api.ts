@@ -1,7 +1,7 @@
 // Strava OAuth configuration
 export const STRAVA_CLIENT_ID = process.env.STRAVA_CLIENT_ID!;
 export const STRAVA_CLIENT_SECRET = process.env.STRAVA_CLIENT_SECRET!;
-export const STRAVA_REDIRECT_URI = process.env.NEXT_PUBLIC_APP_URL + "/api/strava/callback";
+export const STRAVA_REDIRECT_URI = process.env.STRAVA_REDIRECT_URI!;
 
 export const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
 export const STRAVA_TOKEN_URL = "https://www.strava.com/oauth/token";
