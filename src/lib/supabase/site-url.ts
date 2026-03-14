@@ -1,38 +1,40 @@
 import "server-only";
 
 function trimTrailingSlash(value: string) {
-  return value.replace(/\/+$/, "");
+    return value.replace(/\/+$/, "");
 }
 
 export function getSafeNextPath(nextPath: string | null, fallback = "/dashboard") {
-  if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
-    return fallback;
-  }
+    if (!nextPath || !nextPath.startsWith("/") || nextPath.startsWith("//")) {
+        return fallback;
+    }
 
-  return nextPath;
+    return nextPath;
 }
 
 export function resolveSiteUrl(request: Request) {
-  const configuredUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
-    (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
+    const vercel = (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
 
-  if (configuredUrl) {
-    return trimTrailingSlash(configuredUrl);
-  }
+    const configuredUrl =
+        vercel ??
+        process.env.NEXT_PUBLIC_SITE_URL ??
+        process.env.NEXT_PUBLIC_APP_URL
 
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const host = forwardedHost ?? request.headers.get("host");
-  const forwardedProto = request.headers.get("x-forwarded-proto");
+    if (configuredUrl) {
+        return trimTrailingSlash(configuredUrl);
+    }
 
-  if (host) {
-    const protocol =
-      forwardedProto ??
-      (host.includes("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+    const forwardedHost = request.headers.get("x-forwarded-host");
+    const host = forwardedHost ?? request.headers.get("host");
+    const forwardedProto = request.headers.get("x-forwarded-proto");
 
-    return `${protocol}://${host}`;
-  }
+    if (host) {
+        const protocol =
+            forwardedProto ??
+            (host.includes("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
 
-  return new URL(request.url).origin;
+        return `${protocol}://${host}`;
+    }
+
+    return new URL(request.url).origin;
 }

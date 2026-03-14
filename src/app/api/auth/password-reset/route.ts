@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { resolveSiteUrl } from "@/lib/supabase/site-url";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -10,7 +9,11 @@ export async function POST(request: Request) {
   }
 
   const supabase = await createClient();
-  const siteUrl = resolveSiteUrl(request);
+    const vercel = (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
+    const siteUrl =
+        vercel ??
+        process.env.NEXT_PUBLIC_SITE_URL ??
+        process.env.NEXT_PUBLIC_APP_URL
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${siteUrl}/auth/confirm?next=/reset-password`,
