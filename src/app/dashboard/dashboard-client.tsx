@@ -1,17 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Activity, DailyActivity, Streak } from "@/lib/types";
 import {
-  Calendar,
   Check,
-  Edit3,
-  Flame,
   Loader2,
-  Plus,
+  PlusCircle,
   Trash2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -24,7 +21,6 @@ interface DashboardClientProps {
 }
 
 export default function DashboardClient({
-  streak,
   dailyActivities,
   activities,
 }: DashboardClientProps) {
@@ -132,241 +128,175 @@ export default function DashboardClient({
 
   const calendar = generateCalendar();
 
+
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
+
+
+
+      <Card className="border-none bg-muted shadow-none">
+        <CardContent className="pt-6">
+          <div className="flex flex-col items-center gap-2">
+            
+              <p className="text-3xl font-bold text-muted-foreground">
+                {dailyActivities.filter(a => a.is_valid).length} / 30
+              </p>
+              <p className="text-3xl font-bold text-muted-foreground">
+                {dailyActivities.reduce((sum, a) => sum + (a.total_duration_minutes || 0), 0)} min
+              </p>
+            
+          </div>
+        </CardContent>
+      </Card>
+
+{/* Activity Calendar */}
+       
+            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-15 gap-1">
+              {calendar.map((day, i) => (
+                <div
+                  key={i}
+                  className={`aspect-square rounded flex flex-col items-center justify-center text-xs ${
+                    day.isValid
+                      ? "bg-green-500 text-white"
+                      : day.minutes > 0
+                      ? "bg-yellow-200 dark:bg-yellow-800"
+                      : "bg-background"
+                  }`}
+                  title={`${day.date}: ${day.minutes} min`}
+                >
+                  <span className="font-medium">{day.dayOfMonth}</span>
+                  {day.isValid && <Check className="w-3 h-3" />}
+                  {day.minutes > 0 && !day.isValid && <span className="text-[10px]">{day.minutes}m</span>}
+                </div>
+              ))}
+            </div>
+
       {message && (
         <div className={`p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}`}>
           {message.text}
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border border-gray-300 shadow">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
-                <Flame className="w-6 h-6 text-orange-500" />
+      {!showManualEntry ? (
+        <Card className="border-dashed border-2 border-gray-300 bg-muted shadow-none">
+          <CardContent className="p-0">
+            <Button variant="ghost" className="w-full h-full p-8" onClick={() => setShowManualEntry(true)}>
+              <div className="flex flex-col items-center justify-center text-2xl font-semibold text-gray-500">
+                <PlusCircle className="w-8! h-8!" />
+                Add Activity
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Current Streak</p>
-                <p className="text-3xl font-bold">{streak?.current_streak || 0} days</p>
-              </div>
-            </div>
+            </Button>
           </CardContent>
         </Card>
-
-        <Card className="border border-gray-300 shadow">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                <Calendar className="w-6 h-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valid Days (30 days)</p>
-                <p className="text-3xl font-bold">
-                  {dailyActivities.filter(a => a.is_valid).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Activity Calendar */}
-      <Card className="w-full border border-gray-300 shadow">
-        <CardHeader>
-          <CardTitle>Activity Calendar (Last 30 Days)</CardTitle>
-          <CardDescription>
-            Each day requires at least 30 minutes of activity to count
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-15 gap-1">
-            {calendar.map((day, i) => (
-              <div
-                key={i}
-                className={`aspect-square rounded flex flex-col items-center justify-center text-xs ${day.isValid
-                  ? "bg-green-500 text-white"
-                  : day.minutes > 0
-                    ? "bg-yellow-200 dark:bg-yellow-800"
-                    : "bg-muted"
-                  }`}
-                title={`${day.date}: ${day.minutes} min`}
-              >
-                <span className="font-medium">{day.dayOfMonth}</span>
-                {day.isValid && <Check className="w-3 h-3" />}
-                {day.minutes > 0 && !day.isValid && <span className="text-[10px]">{day.minutes}m</span>}
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-green-500 rounded"></div>
-              <span>30+ min</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-yellow-200 dark:bg-yellow-800 rounded"></div>
-              <span>&lt;30 min</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 bg-muted rounded"></div>
-              <span>No activity</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Data Sources Section */}
-      <Card className="w-full border border-gray-300 shadow">
-        <CardHeader>
-          <CardTitle>Data Sources</CardTitle>
-          <CardDescription>
-            Connect fitness platforms or add activities manually
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Manual Entry */}
-          <div>
-            <h3 className="font-medium mb-3 flex items-center gap-2">
-              <Edit3 className="w-5 h-5" />
-              Manual Entry
-            </h3>
-            {!showManualEntry ? (
-              <Button size="sm" onClick={() => setShowManualEntry(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Activity Manually
-              </Button>
-            ) : (
-              <form onSubmit={handleAddManualActivity} className="space-y-4 max-w-md">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="manualDate">Date</Label>
-                    <Input
-                      id="manualDate"
-                      type="date"
-                      value={manualDate}
-                      onChange={(e) => setManualDate(e.target.value)}
-                      max={new Date().toISOString().split("T")[0]}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="manualDuration">Duration (minutes)</Label>
-                    <Input
-                      id="manualDuration"
-                      type="number"
-                      placeholder="30"
-                      value={manualDuration}
-                      onChange={(e) => setManualDuration(e.target.value)}
-                      min="1"
-                      max="1440"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="manualType">Activity Type</Label>
-                    <select
-                      id="manualType"
-                      value={manualType}
-                      onChange={(e) => setManualType(e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      {activityTypes.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="manualName">Activity Name</Label>
-                    <Input
-                      id="manualName"
-                      type="text"
-                      placeholder="Morning run"
-                      value={manualName}
-                      onChange={(e) => setManualName(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="manualNotes">Notes (optional)</Label>
-                  <Input
-                    id="manualNotes"
-                    type="text"
-                    placeholder="Add any notes..."
-                    value={manualNotes}
-                    onChange={(e) => setManualNotes(e.target.value)}
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={addingManual || !manualDuration}>
-                    {addingManual && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Add Activity
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setShowManualEntry(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recent Activities */}
-      <Card className="w-full border border-gray-300 shadow">
-        <CardHeader>
-          <CardTitle>Recent Activities</CardTitle>
-          <CardDescription>
-            Your activities from all sources
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {activities.length > 0 ? (
+      ) : (
+        <form onSubmit={handleAddManualActivity} className="space-y-4 max-w-md">
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              {activities.slice(0, 10).map((activity) => (
-                <div
-                  key={activity.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${activity.source === 'strava' ? 'bg-orange-500' : 'bg-gray-500'}`} />
-                    <div>
-                      <p className="font-medium">{activity.activity_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.activity_date} • {activity.duration_minutes} min • {activity.activity_type}
-                        <span className="ml-2 capitalize text-xs bg-muted px-1.5 py-0.5 rounded">
-                          {activity.source}
-                        </span>
-                      </p>
-                    </div>
-                  </div>
-                  {activity.source === 'manual' && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteActivity(activity.id)}
-                      disabled={deletingActivity === activity.id}
-                    >
-                      {deletingActivity === activity.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      )}
-                    </Button>
-                  )}
-                </div>
-              ))}
+              <Label htmlFor="manualDate">Date</Label>
+              <Input
+                id="manualDate"
+                type="date"
+                value={manualDate}
+                onChange={(e) => setManualDate(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+                required
+              />
             </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">
-              No activities yet. Connect a fitness platform or add activities manually.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+            <div className="space-y-2">
+              <Label htmlFor="manualDuration">Duration (minutes)</Label>
+              <Input
+                id="manualDuration"
+                type="number"
+                placeholder="30"
+                value={manualDuration}
+                onChange={(e) => setManualDuration(e.target.value)}
+                min="1"
+                max="1440"
+                required
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="manualType">Activity Type</Label>
+              <select
+                id="manualType"
+                value={manualType}
+                onChange={(e) => setManualType(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {activityTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="manualName">Activity Name</Label>
+              <Input
+                id="manualName"
+                type="text"
+                placeholder="Morning run"
+                value={manualName}
+                onChange={(e) => setManualName(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="manualNotes">Notes (optional)</Label>
+            <Input
+              id="manualNotes"
+              type="text"
+              placeholder="Add any notes..."
+              value={manualNotes}
+              onChange={(e) => setManualNotes(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" disabled={addingManual || !manualDuration}>
+              {addingManual && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Add Activity
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setShowManualEntry(false)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {activities.length > 0 ? (
+        <div className="space-y-2">
+          {activities.slice(0, 10).map((activity) => (
+            <Card className="w-full border border-gray-300 shadow"
+              key={activity.id}
+            >
+              <CardContent className="flex items-center justify-between p-8">
+                    <p className="font-medium">{activity.activity_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {activity.activity_date} • {activity.duration_minutes} min • {activity.activity_type}
+                    </p>
+                {activity.source === 'manual' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleDeleteActivity(activity.id)}
+                    disabled={deletingActivity === activity.id}
+                  >
+                    {deletingActivity === activity.id ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    )}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <p className="text-muted-foreground text-center py-8">
+          No activities yet.
+        </p>
+      )}
     </div>
   );
 }

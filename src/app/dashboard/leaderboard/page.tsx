@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import { LeaderboardEntry } from "@/lib/types";
 import { Award, Flame, Medal, Trophy } from "lucide-react";
@@ -16,7 +16,7 @@ export default async function Leaderboard() {
   const { data: leaderboard } = await supabase
     .from("public_leaderboard")
     .select("*")
-    .limit(50) as { data: LeaderboardEntry[] | null };
+    .limit(200) as { data: LeaderboardEntry[] | null };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -34,23 +34,14 @@ export default async function Leaderboard() {
         <section className="py-12 px-4 bg-muted">
         <div className="container mx-auto max-w-4xl">
       <Card className="w-full border border-gray-300 shadow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-yellow-500" />
-                Leaderboard
-              </CardTitle>
-              <CardDescription>
-                Top participants ranked by current streak
-              </CardDescription>
-            </CardHeader>
             <CardContent>
               {leaderboard && leaderboard.length > 0 ? (
                 <div className="space-y-2">
                   <div className="grid grid-cols-12 gap-4 px-4 py-2 text-sm font-medium text-muted-foreground border-b">
                     <div className="col-span-1">Rank</div>
                     <div className="col-span-5">User</div>
-                    <div className="col-span-2 text-center">Current</div>
-                    <div className="col-span-2 text-center">Best</div>
+                    <div className="col-span-2 text-center">Consecutive</div>
+                    <div className="col-span-2 text-center">Minutes</div>
                     <div className="col-span-2 text-center">Days</div>
                   </div>
                   {leaderboard.map((entry, index) => (
@@ -81,7 +72,7 @@ export default async function Leaderboard() {
                         </div>
                       </div>
                       <div className="col-span-2 flex items-center justify-center">
-                        <span className="text-muted-foreground">{entry.longest_streak}</span>
+                        <span className="text-muted-foreground">{entry.total_minutes.toLocaleString()}</span>
                       </div>
                       <div className="col-span-2 flex items-center justify-center">
                         <span className="text-muted-foreground">{entry.total_valid_days}</span>
