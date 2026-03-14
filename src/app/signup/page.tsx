@@ -4,23 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createClient } from "@/lib/supabase/client";
 import { CheckCircle, Loader2, Mail, User } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-
-function findCurrentEnv() {
-  let envUrl
-  const vercel = process.env.VERCEL!
-
-  if (vercel) {
-    envUrl = `https://` + process.env.VERCEL_URL
-  } else {
-    envUrl = window.location.origin
-  }
-
-  return envUrl
-}
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
@@ -29,14 +15,11 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const envUrl = findCurrentEnv()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
-    const supabase = createClient();
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
@@ -44,22 +27,23 @@ export default function SignupPage() {
       return;
     }
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-      emailRedirectTo: `${envUrl}/auth/callback`,
-      data: {
-        username: username || null,
-      },
-      },
-    });
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, username }),
+      });
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      setSent(true);
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Unable to create account.");
+      } else {
+        setSent(true);
+      }
+    } catch {
+      setError("Unable to create account.");
+    } finally {
       setLoading(false);
     }
   };
@@ -79,7 +63,7 @@ export default function SignupPage() {
               <CheckCircle className="w-16 h-16 mx-auto text-green-500" />
               <h3 className="text-lg font-medium">Check your email!</h3>
               <p className="text-muted-foreground">
-                We&apos;ve sent a magic link to <strong>{email}</strong>
+                We&apos;ve sent a confirmation link to <strong>{email}</strong>
               </p>
               <p className="text-sm text-muted-foreground">
                 Click the link in the email to create your account.

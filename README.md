@@ -9,7 +9,7 @@ A public-facing leaderboard tracking daily streak activity for 30 days, with a m
   - **Strava Integration**: Automatically sync activities from Strava
   - **Garmin Connect Integration**: Automatically sync activities from Garmin
   - **Manual Entry**: Log activities manually for any workout
-- **Magic Link Authentication**: Secure, passwordless login via email
+- **Email/Password Authentication**: Traditional login with email confirmation on signup
 - **Personal Dashboard**: Track your streak, manage settings, and view your activity calendar
 - **Privacy Controls**: Choose whether to appear on the public leaderboard
 
@@ -18,7 +18,7 @@ A public-facing leaderboard tracking daily streak activity for 30 days, with a m
 - **Frontend**: Next.js 15 with App Router
 - **UI Components**: Shadcn UI with Tailwind CSS
 - **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth (Magic Link)
+- **Authentication**: Supabase Auth (Email/Password + email confirmation)
 - **Activity Data**: Strava API, Garmin Connect API, Manual Entry
 
 ## Getting Started
@@ -50,12 +50,13 @@ A public-facing leaderboard tracking daily streak activity for 30 days, with a m
    
    Fill in your environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL`: Your Supabase project URL
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: Your Supabase publishable key
    - `STRAVA_CLIENT_ID`: Your Strava API client ID (optional)
    - `STRAVA_CLIENT_SECRET`: Your Strava API client secret (optional)
    - `GARMIN_CONSUMER_KEY`: Your Garmin API consumer key (optional)
    - `GARMIN_CONSUMER_SECRET`: Your Garmin API consumer secret (optional)
-   - `NEXT_PUBLIC_APP_URL`: Your app URL (e.g., http://localhost:3000)
+   - `NEXT_PUBLIC_APP_URL`: Fallback app URL (e.g., http://localhost:3000)
+   - `NEXT_PUBLIC_SITE_URL`: Canonical site URL for auth email redirects (staging/prod)
 
 4. Set up the database:
    - Go to your Supabase dashboard
@@ -108,13 +109,14 @@ src/
 
 ## How It Works
 
-1. Users sign up/login with their email (magic link)
-2. Connect their fitness platforms (Strava, Garmin) or add activities manually
-3. Sync activities from connected platforms (last 30 days)
-4. Activities from all sources are aggregated per day
-5. Days with 30+ minutes count toward the streak
-6. Streaks are calculated based on consecutive valid days
-7. Public profiles appear on the leaderboard
+1. Users sign up with email/password and confirm via email link
+2. Users log in with email/password
+3. Connect their fitness platforms (Strava, Garmin) or add activities manually
+4. Sync activities from connected platforms (last 30 days)
+5. Activities from all sources are aggregated per day
+6. Days with 30+ minutes count toward the streak
+7. Streaks are calculated based on consecutive valid days
+8. Public profiles appear on the leaderboard
 
 ## License
 
