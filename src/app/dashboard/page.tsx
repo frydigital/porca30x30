@@ -11,20 +11,6 @@ export default async function DashboardPage() {
     redirect("/login");
   }
 
-  // Get user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  // Get Strava connection
-  const { data: stravaConnection } = await supabase
-    .from("strava_connections")
-    .select("strava_athlete_id, created_at")
-    .eq("user_id", user.id)
-    .single();
-
   // Get streak data
   const { data: streak } = await supabase
     .from("streaks")
@@ -48,19 +34,10 @@ export default async function DashboardPage() {
     .order("activity_date", { ascending: false })
     .limit(50);
 
-  // Check if API keys are configured
-  const stravaConfigured = !!(
-    process.env.STRAVA_CLIENT_ID && 
-    process.env.STRAVA_CLIENT_SECRET &&
-    process.env.STRAVA_CLIENT_ID !== 'your_strava_client_id'
-  );
+ 
 
   return (
     <DashboardClient
-      user={user}
-      profile={profile}
-      stravaConnected={!!stravaConnection}
-      stravaConfigured={stravaConfigured}
       streak={streak}
       dailyActivities={dailyActivities || []}
       activities={recentActivities || []}
