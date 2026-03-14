@@ -16,10 +16,7 @@ export async function POST(request: Request) {
     email,
     password,
     options: {
-      emailRedirectTo: `${siteUrl}/auth/confirm?next=/dashboard`,
-      data: {
-        username: username || null,
-      },
+      emailRedirectTo: `${siteUrl}/dashboard`,
     },
   });
 
