@@ -58,7 +58,7 @@ export interface LeaderboardEntry {
   username: string | null;
   avatar_url: string | null;
   current_streak: number;
-  longest_streak: number;
+  total_minutes: number;
   total_valid_days: number;
 }
 

@@ -1,3 +1,4 @@
+import { Header } from "@/components/header";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -13,8 +14,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased bg-muted">
-        {children}
+      <body className="antialiased">
+        <div className="min-h-screen flex flex-col">
+          <Header />
+          <main className="flex-1 bg-muted">{children}</main>
+        </div>
       </body>
     </html>
   );
