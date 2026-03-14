@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { resolveSiteUrl } from "@/lib/supabase/site-url";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -9,17 +10,13 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    const vercel = (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
-    const siteUrl =
-        vercel ??
-        process.env.NEXT_PUBLIC_SITE_URL ??
-        process.env.NEXT_PUBLIC_APP_URL
+    const siteUrl = resolveSiteUrl(request);
 
     const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-            emailRedirectTo: `${siteUrl}/dashboard`,
+            emailRedirectTo: `${siteUrl}/auth/confirm?next=/dashboard`,
             data: {
                 username
             }
