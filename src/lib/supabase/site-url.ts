@@ -16,8 +16,7 @@ export function resolveSiteUrl(request: Request) {
   const configuredUrl =
     process.env.NEXT_PUBLIC_SITE_URL ??
     process.env.NEXT_PUBLIC_APP_URL ??
-    process.env.SITE_URL ??
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+    (process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}` : undefined);
 
   if (configuredUrl) {
     return trimTrailingSlash(configuredUrl);
