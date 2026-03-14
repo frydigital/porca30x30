@@ -51,68 +51,71 @@ export default function SettingsClient({
 
 
     return (
-        <Card className="w-full max-w-lg border border-gray-300 shadow">
-            <CardHeader>
-                <CardTitle>Profile Settings</CardTitle>
-                <CardDescription>
-                    Manage your display name and privacy settings
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                        id="email"
-                        type="email"
-                        value={user.email || ""}
-                        disabled
-                        className="bg-muted"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        Email cannot be changed
-                    </p>
-                </div>
+        <div className="container mx-auto px-4 py-8 space-y-8">
 
-                <div className="space-y-2">
-                    <Label htmlFor="username">Display Name</Label>
-                    <Input
-                        id="username"
-                        type="text"
-                        placeholder="Choose a display name"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                        This will be shown on the public leaderboard
-                    </p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                        <Label htmlFor="visibility">Public Profile</Label>
-                        <p className="text-sm text-muted-foreground">
-                            Show your profile on the public leaderboard
+            <Card className="w-full border border-gray-300 shadow">
+                <CardHeader>
+                    <CardTitle>Profile Settings</CardTitle>
+                    <CardDescription>
+                        Manage your display name and privacy settings
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                            id="email"
+                            type="email"
+                            value={user.email || ""}
+                            disabled
+                            className="bg-muted"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Email cannot be changed
                         </p>
                     </div>
-                    <Switch
-                        id="visibility"
-                        checked={isPublic}
-                        onCheckedChange={setIsPublic}
-                    />
-                </div>
 
-                <Button onClick={handleSaveProfile} disabled={saving}>
-                    {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Save Changes
-                </Button>
-
-                {message && (
-                    <div className={`p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}`}>
-                        {message.text}
+                    <div className="space-y-2">
+                        <Label htmlFor="username">Display Name</Label>
+                        <Input
+                            id="username"
+                            type="text"
+                            placeholder="Choose a display name"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            This will be shown on the public leaderboard
+                        </p>
                     </div>
-                )}
 
-            </CardContent>
-        </Card>
+                    <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                            <Label htmlFor="visibility">Public Profile</Label>
+                            <p className="text-sm text-muted-foreground">
+                                Show your profile on the public leaderboard
+                            </p>
+                        </div>
+                        <Switch
+                            id="visibility"
+                            checked={isPublic}
+                            onCheckedChange={setIsPublic}
+                        />
+                    </div>
+
+                    <Button onClick={handleSaveProfile} disabled={saving}>
+                        {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Save Changes
+                    </Button>
+
+                    {message && (
+                        <div className={`p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}`}>
+                            {message.text}
+                        </div>
+                    )}
+
+                </CardContent>
+            </Card>
+        </div>
     )
 }

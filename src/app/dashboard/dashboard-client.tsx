@@ -30,7 +30,7 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const router = useRouter();
 
- 
+
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Manual entry state
@@ -141,8 +141,8 @@ export default function DashboardClient({
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border border-gray-300 shadow">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
@@ -156,7 +156,7 @@ export default function DashboardClient({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border border-gray-300 shadow">
           <CardContent className="pt-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
@@ -174,7 +174,7 @@ export default function DashboardClient({
       </div>
 
       {/* Activity Calendar */}
-      <Card>
+      <Card className="w-full border border-gray-300 shadow">
         <CardHeader>
           <CardTitle>Activity Calendar (Last 30 Days)</CardTitle>
           <CardDescription>
@@ -218,7 +218,7 @@ export default function DashboardClient({
       </Card>
 
       {/* Data Sources Section */}
-      <Card className="w-full max-w-lg border border-gray-300 shadow">
+      <Card className="w-full border border-gray-300 shadow">
         <CardHeader>
           <CardTitle>Data Sources</CardTitle>
           <CardDescription>
@@ -316,7 +316,7 @@ export default function DashboardClient({
       </Card>
 
       {/* Recent Activities */}
-      <Card className="w-full max-w-lg border border-gray-300 shadow">
+      <Card className="w-full border border-gray-300 shadow">
         <CardHeader>
           <CardTitle>Recent Activities</CardTitle>
           <CardDescription>
