@@ -3,6 +3,7 @@ export interface Profile {
   email: string;
   username: string | null;
   avatar_url: string | null;
+  role: "user" | "admin";
   is_public: boolean;
   created_at: string;
   updated_at: string;
@@ -67,7 +68,9 @@ export interface Database {
     Tables: {
       profiles: {
         Row: Profile;
-        Insert: Omit<Profile, "created_at" | "updated_at">;
+        Insert: Omit<Profile, "created_at" | "updated_at" | "role"> & {
+          role?: Profile["role"];
+        };
         Update: Partial<Omit<Profile, "id" | "created_at">>;
       };
       strava_connections: {

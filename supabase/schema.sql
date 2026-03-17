@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   email TEXT NOT NULL,
   username TEXT UNIQUE,
   avatar_url TEXT,
+  role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
   is_public BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -228,6 +229,36 @@ CREATE POLICY "System can create streaks for new users" ON streaks
 DROP POLICY IF EXISTS "Users can update own streaks" ON streaks;
 CREATE POLICY "Users can update own streaks" ON streaks
   FOR UPDATE USING (auth.uid() = user_id);
+
+-- Helper to evaluate whether the authenticated user is an admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM public.profiles
+    WHERE id = auth.uid()
+      AND role = 'admin'
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public;
+
+GRANT EXECUTE ON FUNCTION is_admin() TO authenticated;
+
+-- Admin read policies
+DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
+CREATE POLICY "Admins can view all profiles" ON profiles
+  FOR SELECT USING (is_admin());
+
+DROP POLICY IF EXISTS "Admins can view all activities" ON activities;
+CREATE POLICY "Admins can view all activities" ON activities
+  FOR SELECT USING (is_admin());
+
+DROP POLICY IF EXISTS "Admins can view all daily activities" ON daily_activities;
+CREATE POLICY "Admins can view all daily activities" ON daily_activities
+  FOR SELECT USING (is_admin());
+
+DROP POLICY IF EXISTS "Admins can view all streaks" ON streaks;
+CREATE POLICY "Admins can view all streaks" ON streaks
+  FOR SELECT USING (is_admin());
 
 -- Update handle_new_user function to also create streak record
 CREATE OR REPLACE FUNCTION handle_new_user()

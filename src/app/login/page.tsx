@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Loader2, Mail } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -17,14 +17,28 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        router.replace("/dashboard");
+        router.refresh();
+      }
+    };
+
+    checkSession();
+  }, [router, supabase]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -35,7 +49,8 @@ export default function LoginPage() {
       setLoading(false);
     } else {
       setLoading(false);
-      router.push("/dashboard");
+      router.replace("/dashboard");
+      router.refresh();
     }
   };
 
