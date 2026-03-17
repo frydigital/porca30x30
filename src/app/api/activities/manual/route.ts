@@ -1,5 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
 import { updateDailyActivity } from "@/lib/activities/utils";
+import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -25,19 +25,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
     }
 
-    // Validate date (not in future, not more than 30 days ago)
+    // Validate date against configured challenge range when available
     const activityDateObj = new Date(activity_date);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    const { data: challengeSettings } = await supabase
+      .from("challenge_settings")
+      .select("start_date, end_date")
+      .eq("id", 1)
+      .single();
 
-    if (activityDateObj > today) {
-      return NextResponse.json({ error: "Cannot log future activities" }, { status: 400 });
-    }
-    if (activityDateObj < thirtyDaysAgo) {
-      return NextResponse.json({ error: "Cannot log activities older than 30 days" }, { status: 400 });
+    if (challengeSettings?.start_date && challengeSettings?.end_date) {
+      const challengeStart = new Date(`${challengeSettings.start_date}T00:00:00Z`);
+      const challengeEnd = new Date(`${challengeSettings.end_date}T23:59:59.999Z`);
+
+      if (activityDateObj < challengeStart || activityDateObj > challengeEnd) {
+        return NextResponse.json(
+          { error: "Activity date must be within the configured challenge dates" },
+          { status: 400 }
+        );
+      }
+    } else {
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+      if (activityDateObj > today) {
+        return NextResponse.json({ error: "Cannot log future activities" }, { status: 400 });
+      }
+      if (activityDateObj < thirtyDaysAgo) {
+        return NextResponse.json({ error: "Cannot log activities older than 30 days" }, { status: 400 });
+      }
     }
 
     // Insert manual activity

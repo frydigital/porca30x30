@@ -76,6 +76,22 @@ CREATE TABLE IF NOT EXISTS streaks (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Create challenge_settings table (singleton for challenge date range)
+CREATE TABLE IF NOT EXISTS challenge_settings (
+  id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  CHECK (start_date <= end_date)
+);
+
+-- Seed singleton challenge settings row
+INSERT INTO challenge_settings (id, start_date, end_date)
+VALUES (1, CURRENT_DATE, CURRENT_DATE + INTERVAL '29 day')
+ON CONFLICT (id) DO NOTHING;
+
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_activities_user_date ON activities(user_id, activity_date);
 CREATE INDEX IF NOT EXISTS idx_daily_activities_user_date ON daily_activities(user_id, activity_date);
@@ -111,6 +127,10 @@ DROP TRIGGER IF EXISTS update_streaks_updated_at ON streaks;
 CREATE TRIGGER update_streaks_updated_at BEFORE UPDATE ON streaks
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_challenge_settings_updated_at ON challenge_settings;
+CREATE TRIGGER update_challenge_settings_updated_at BEFORE UPDATE ON challenge_settings
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- Enable Row Level Security
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE strava_connections ENABLE ROW LEVEL SECURITY;
@@ -118,6 +138,7 @@ ALTER TABLE garmin_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE streaks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE challenge_settings ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
 DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
@@ -258,6 +279,17 @@ CREATE POLICY "Admins can view all daily activities" ON daily_activities
 DROP POLICY IF EXISTS "Admins can view all streaks" ON streaks;
 CREATE POLICY "Admins can view all streaks" ON streaks
   FOR SELECT USING (is_admin());
+
+-- Challenge settings policies
+DROP POLICY IF EXISTS "Authenticated users can view challenge settings" ON challenge_settings;
+CREATE POLICY "Authenticated users can view challenge settings" ON challenge_settings
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Admins can view challenge settings" ON challenge_settings;
+
+DROP POLICY IF EXISTS "Admins can update challenge settings" ON challenge_settings;
+CREATE POLICY "Admins can update challenge settings" ON challenge_settings
+  FOR UPDATE USING (is_admin()) WITH CHECK (is_admin());
 
 -- Update handle_new_user function to also create streak record
 CREATE OR REPLACE FUNCTION handle_new_user()

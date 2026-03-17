@@ -1,16 +1,21 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireAdmin } from "@/lib/auth/admin";
+import AdminOptionsClient from "./options-client";
 
-export default function AdminOptionsPage() {
+export default async function AdminOptionsPage() {
+  const { supabase } = await requireAdmin();
+
+  const { data } = await supabase
+    .from("challenge_settings")
+    .select("start_date, end_date")
+    .eq("id", 1)
+    .single();
+
   return (
-    <Card className="border border-gray-300 shadow">
-      <CardHeader>
-        <CardTitle>Admin Options</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground">
-          This section is reserved for future admin settings and controls.
-        </p>
-      </CardContent>
-    </Card>
+    <AdminOptionsClient
+      initialSettings={{
+        start_date: data?.start_date ?? new Date().toISOString().split("T")[0],
+        end_date: data?.end_date ?? new Date().toISOString().split("T")[0],
+      }}
+    />
   );
 }

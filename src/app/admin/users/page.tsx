@@ -1,6 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth/admin";
 
+type SearchParams = {
+  from?: string;
+  to?: string;
+  minCalcStreak?: string;
+  maxCalcStreak?: string;
+};
+
 type StreakRow = {
   user_id: string;
   current_streak: number;
@@ -20,16 +27,28 @@ type ActivityTypeRow = {
   activity_type: string;
 };
 
-const DAY_COUNT = 30;
+function toDateKey(date: Date) {
+  return date.toISOString().split("T")[0];
+}
 
-function getDateKeys(dayCount: number) {
-  const keys: string[] = [];
+function getDefaultDateRangeFallback() {
   const today = new Date();
+  const start = new Date(today);
+  start.setDate(today.getDate() - 29);
 
-  for (let i = dayCount - 1; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(today.getDate() - i);
-    keys.push(d.toISOString().split("T")[0]);
+  return {
+    from: toDateKey(start),
+    to: toDateKey(today),
+  };
+}
+
+function getDateKeysInRange(from: string, to: string) {
+  const keys: string[] = [];
+  const start = new Date(`${from}T00:00:00Z`);
+  const end = new Date(`${to}T00:00:00Z`);
+
+  for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    keys.push(toDateKey(d));
   }
 
   return keys;
@@ -62,11 +81,44 @@ function calculateConsecutiveStreak(
   return streak;
 }
 
-export default async function AdminUsersPage() {
+export default async function AdminUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const { supabase } = await requireAdmin();
+  const params = await searchParams;
 
-  const dateKeys = getDateKeys(DAY_COUNT);
+  const { data: challengeSettings } = await supabase
+    .from("challenge_settings")
+    .select("start_date, end_date")
+    .eq("id", 1)
+    .single();
+
+  const defaults = getDefaultDateRangeFallback();
+  const defaultFrom = challengeSettings?.start_date ?? defaults.from;
+  const defaultTo = challengeSettings?.end_date ?? defaults.to;
+
+  const rawFrom = params.from || defaultFrom;
+  const rawTo = params.to || defaultTo;
+
+  const from = rawFrom <= rawTo ? rawFrom : rawTo;
+  const to = rawFrom <= rawTo ? rawTo : rawFrom;
+
+  const minCalcStreak = params.minCalcStreak ? Number(params.minCalcStreak) : undefined;
+  const maxCalcStreak = params.maxCalcStreak ? Number(params.maxCalcStreak) : undefined;
+
+  const hasMinCalcStreak = Number.isFinite(minCalcStreak);
+  const hasMaxCalcStreak = Number.isFinite(maxCalcStreak);
+
+  const dateKeys = getDateKeysInRange(from, to);
+
+  if (dateKeys.length === 0) {
+    dateKeys.push(from);
+  }
+
   const startDate = dateKeys[0];
+  const endDate = dateKeys[dateKeys.length - 1];
 
   const [profilesResult, streaksResult, dailyResult, activityTypesResult] =
     await Promise.all([
@@ -80,11 +132,13 @@ export default async function AdminUsersPage() {
       supabase
         .from("daily_activities")
         .select("user_id, activity_date, total_duration_minutes")
-        .gte("activity_date", startDate),
+        .gte("activity_date", startDate)
+        .lte("activity_date", endDate),
       supabase
         .from("activities")
         .select("user_id, activity_date, activity_type")
-        .gte("activity_date", startDate),
+        .gte("activity_date", startDate)
+        .lte("activity_date", endDate),
     ]);
 
   const profiles = profilesResult.data ?? [];
@@ -110,12 +164,84 @@ export default async function AdminUsersPage() {
     typeByUserDate.set(key, existing);
   }
 
+  const filteredProfiles = profiles.filter((profile) => {
+    const calculatedStreak = calculateConsecutiveStreak(
+      profile.id,
+      dateKeys,
+      durationByUserDate
+    );
+
+    if (hasMinCalcStreak && calculatedStreak < (minCalcStreak as number)) {
+      return false;
+    }
+
+    if (hasMaxCalcStreak && calculatedStreak > (maxCalcStreak as number)) {
+      return false;
+    }
+
+    return true;
+  });
+
   return (
     <Card className="border border-gray-300 shadow">
       <CardHeader>
         <CardTitle>Users Activity Table</CardTitle>
       </CardHeader>
       <CardContent>
+        <form className="mb-4 grid gap-3 rounded-md border border-gray-300 p-3 md:grid-cols-5">
+          <div className="space-y-1">
+            <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
+            <input
+              id="from"
+              name="from"
+              type="date"
+              defaultValue={from}
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="to" className="text-xs text-muted-foreground">To</label>
+            <input
+              id="to"
+              name="to"
+              type="date"
+              defaultValue={to}
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="minCalcStreak" className="text-xs text-muted-foreground">Min Calc Streak</label>
+            <input
+              id="minCalcStreak"
+              name="minCalcStreak"
+              type="number"
+              min="0"
+              placeholder="0"
+              defaultValue={params.minCalcStreak || ""}
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            />
+          </div>
+          <div className="space-y-1">
+            <label htmlFor="maxCalcStreak" className="text-xs text-muted-foreground">Max Calc Streak</label>
+            <input
+              id="maxCalcStreak"
+              name="maxCalcStreak"
+              type="number"
+              min="0"
+              placeholder="Any"
+              defaultValue={params.maxCalcStreak || ""}
+              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <button type="submit" className="h-9 rounded-md bg-foreground px-4 text-sm text-background">
+              Apply
+            </button>
+            <a href="/admin/users" className="h-9 rounded-md border border-input px-4 py-2 text-sm">
+              Reset
+            </a>
+          </div>
+        </form>
         <div className="overflow-x-auto">
           <table className="w-full min-w-400 text-sm border-collapse">
             <thead>
@@ -136,7 +262,7 @@ export default async function AdminUsersPage() {
               </tr>
             </thead>
             <tbody>
-              {profiles.map((profile) => {
+              {filteredProfiles.map((profile) => {
                 const streak = streakByUser.get(profile.id);
                 const calculatedStreak = calculateConsecutiveStreak(
                   profile.id,
@@ -172,6 +298,13 @@ export default async function AdminUsersPage() {
                   </tr>
                 );
               })}
+              {filteredProfiles.length === 0 && (
+                <tr>
+                  <td colSpan={8 + dateKeys.length} className="p-6 text-center text-muted-foreground">
+                    No users matched the selected filters.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
