@@ -109,19 +109,11 @@ export default function AuthMenu() {
 
 	return (
 		<nav className="flex items-center gap-2">
-			{state.role === "admin" && (
-				<Button variant={pathname?.startsWith("/admin") ? "outline" : "ghost"} asChild>
-					<Link href="/admin">Admin</Link>
-				</Button>
-			)}
-			<Button variant={pathname?.startsWith("/settings") ? "outline" : "ghost"} asChild>
-				<Link href="/settings">Settings</Link>
-			</Button>
-			<Button variant={pathname?.startsWith("/dashboard/leaderboard") ? "outline" : "ghost"} asChild>
+			<Button variant={pathname?.startsWith("/dashboard/leaderboard") ? "secondary" : "ghost"} asChild>
 				<Link href="/dashboard/leaderboard">Leaderboard</Link>
 			</Button>
-			<Button variant={pathname === "/dashboard" ? "outline" : "ghost"} asChild>
-				<Link href="/dashboard">Dashboard</Link>
+			<Button variant={pathname === "/dashboard" ? "secondary" : "ghost"} asChild>
+				<Link href="/dashboard">Activities</Link>
 			</Button>
 
 			<DropdownMenu.Root>
@@ -149,11 +141,6 @@ export default function AuthMenu() {
 						<DropdownMenu.Item asChild>
 							<Link className="block rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted" href="/settings">
 								Profile Settings
-							</Link>
-						</DropdownMenu.Item>
-						<DropdownMenu.Item asChild>
-							<Link className="block rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-muted" href="/dashboard">
-								Dashboard
 							</Link>
 						</DropdownMenu.Item>
 						{state.role === "admin" && (
