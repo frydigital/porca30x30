@@ -59,8 +59,8 @@ export async function POST(request: Request) {
 
     const configuredTypes = (challengeSettings?.activity_types || [])
       .filter((type: string | null): type is string => typeof type === "string")
-      .map((type) => type.trim())
-      .filter((type) => type.length > 0);
+      .map((type: string) => type.trim())
+      .filter((type: string) => type.length > 0);
 
     if (configuredTypes.length > 0 && !configuredTypes.includes(activityType)) {
       return NextResponse.json(
