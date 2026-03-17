@@ -20,6 +20,7 @@ interface DashboardClientProps {
   activities: Activity[];
   challengeStartDate: string;
   challengeEndDate: string;
+  challengeActivityTypes: string[];
 }
 
 export default function DashboardClient({
@@ -27,6 +28,7 @@ export default function DashboardClient({
   activities,
   challengeStartDate,
   challengeEndDate,
+  challengeActivityTypes,
 }: DashboardClientProps) {
   const router = useRouter();
 
@@ -46,7 +48,7 @@ export default function DashboardClient({
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualDate, setManualDate] = useState(defaultManualDate);
   const [manualDuration, setManualDuration] = useState("");
-  const [manualType, setManualType] = useState("Workout");
+  const [manualType, setManualType] = useState(challengeActivityTypes[0] || "Ride");
   const [manualName, setManualName] = useState("");
   const [manualNotes, setManualNotes] = useState("");
   const [addingManual, setAddingManual] = useState(false);
@@ -112,9 +114,7 @@ export default function DashboardClient({
   };
 
   // Activity type options
-  const activityTypes = [
-    "Ride", "Trailwork"
-  ];
+  const activityTypes = challengeActivityTypes;
 
   // Generate activity calendar for the configured challenge window
   const generateCalendar = () => {

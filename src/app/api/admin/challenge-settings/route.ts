@@ -36,7 +36,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("challenge_settings")
-    .select("start_date, end_date")
+    .select("start_date, end_date, timezone, activity_types")
     .eq("id", 1)
     .single();
 
@@ -59,9 +59,32 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const startDate = body.start_date as string | undefined;
     const endDate = body.end_date as string | undefined;
+    const timezone = body.timezone as string | undefined;
+    const activityTypes = Array.isArray(body.activity_types)
+      ? body.activity_types
+          .map((item: unknown) => (typeof item === "string" ? item.trim() : ""))
+          .filter((item: string) => item.length > 0)
+      : [];
 
-    if (!startDate || !endDate) {
-      return NextResponse.json({ error: "Start date and end date are required" }, { status: 400 });
+    if (!startDate || !endDate || !timezone) {
+      return NextResponse.json({ error: "Start date, end date, and timezone are required" }, { status: 400 });
+    }
+
+    if (activityTypes.length === 0) {
+      return NextResponse.json({ error: "At least one activity type is required" }, { status: 400 });
+    }
+
+    const hasInvalidTimezone = (() => {
+      try {
+        Intl.DateTimeFormat("en-US", { timeZone: timezone });
+        return false;
+      } catch {
+        return true;
+      }
+    })();
+
+    if (hasInvalidTimezone) {
+      return NextResponse.json({ error: "Invalid timezone" }, { status: 400 });
     }
 
     if (startDate > endDate) {
@@ -73,11 +96,13 @@ export async function PUT(request: Request) {
       .update({
         start_date: startDate,
         end_date: endDate,
+        timezone,
+        activity_types: Array.from(new Set(activityTypes)),
         updated_by: user.id,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1)
-      .select("start_date, end_date")
+      .select("start_date, end_date, timezone, activity_types")
       .single();
 
     if (error) {

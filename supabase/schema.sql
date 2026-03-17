@@ -82,6 +82,8 @@ CREATE TABLE IF NOT EXISTS challenge_settings (
   id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1),
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'UTC',
+  activity_types TEXT[] NOT NULL DEFAULT ARRAY['Ride', 'Trailwork'],
   updated_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -89,8 +91,8 @@ CREATE TABLE IF NOT EXISTS challenge_settings (
 );
 
 -- Seed singleton challenge settings row
-INSERT INTO challenge_settings (id, start_date, end_date)
-VALUES (1, CURRENT_DATE, CURRENT_DATE + INTERVAL '29 day')
+INSERT INTO challenge_settings (id, start_date, end_date, timezone, activity_types)
+VALUES (1, CURRENT_DATE, CURRENT_DATE + INTERVAL '29 day', 'UTC', ARRAY['Ride', 'Trailwork'])
 ON CONFLICT (id) DO NOTHING;
 
 -- Create indexes

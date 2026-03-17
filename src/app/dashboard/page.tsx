@@ -6,6 +6,25 @@ function toDateKey(date: Date) {
   return date.toISOString().split("T")[0];
 }
 
+function getDateInTimezone(timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return toDateKey(new Date());
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
 function getDefaultChallengeRange() {
   const today = new Date();
   const start = new Date(today);
@@ -28,13 +47,20 @@ export default async function DashboardPage() {
 
   const { data: challengeSettings } = await supabase
     .from("challenge_settings")
-    .select("start_date, end_date")
+    .select("start_date, end_date, timezone, activity_types")
     .eq("id", 1)
     .single();
 
   const defaults = getDefaultChallengeRange();
+  const challengeTimezone = challengeSettings?.timezone ?? "UTC";
+  const timezoneToday = getDateInTimezone(challengeTimezone);
+
   const challengeStartDate = challengeSettings?.start_date ?? defaults.startDate;
-  const challengeEndDate = challengeSettings?.end_date ?? defaults.endDate;
+  const configuredEndDate = challengeSettings?.end_date ?? defaults.endDate;
+  const challengeEndDate = configuredEndDate < timezoneToday ? configuredEndDate : timezoneToday;
+  const challengeActivityTypes =
+    challengeSettings?.activity_types?.filter((type: string | null) => typeof type === "string" && type.trim().length > 0)
+      ?? ["Ride", "Trailwork"];
 
   // Get streak data
   const { data: streak } = await supabase
@@ -69,6 +95,7 @@ export default async function DashboardPage() {
       activities={recentActivities || []}
       challengeStartDate={challengeStartDate}
       challengeEndDate={challengeEndDate}
+      challengeActivityTypes={challengeActivityTypes}
     />
   );
 }

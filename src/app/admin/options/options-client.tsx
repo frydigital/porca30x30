@@ -10,6 +10,8 @@ import { useState } from "react";
 type ChallengeSettings = {
   start_date: string;
   end_date: string;
+  timezone: string;
+  activity_types: string[];
 };
 
 export default function AdminOptionsClient({
@@ -19,8 +21,15 @@ export default function AdminOptionsClient({
 }) {
   const [startDate, setStartDate] = useState(initialSettings.start_date);
   const [endDate, setEndDate] = useState(initialSettings.end_date);
+  const [timezone, setTimezone] = useState(initialSettings.timezone);
+  const [activityTypesText, setActivityTypesText] = useState(initialSettings.activity_types.join("\n"));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const activityTypes = activityTypesText
+    .split(/\n|,/)
+    .map((value) => value.trim())
+    .filter(Boolean);
 
   const handleSave = async () => {
     setSaving(true);
@@ -33,6 +42,8 @@ export default function AdminOptionsClient({
         body: JSON.stringify({
           start_date: startDate,
           end_date: endDate,
+          timezone,
+          activity_types: activityTypes,
         }),
       });
 
@@ -43,7 +54,9 @@ export default function AdminOptionsClient({
       } else {
         setStartDate(data.settings.start_date);
         setEndDate(data.settings.end_date);
-        setMessage({ type: "success", text: "Challenge dates updated" });
+        setTimezone(data.settings.timezone);
+        setActivityTypesText((data.settings.activity_types || []).join("\n"));
+        setMessage({ type: "success", text: "Challenge settings updated" });
       }
     } catch {
       setMessage({ type: "error", text: "Failed to update challenge settings" });
@@ -80,9 +93,41 @@ export default function AdminOptionsClient({
           </div>
         </div>
 
-        <Button onClick={handleSave} disabled={saving || !startDate || !endDate || startDate > endDate}>
+        <div className="space-y-2">
+          <Label htmlFor="challengeTimezone">Challenge Timezone</Label>
+          <Input
+            id="challengeTimezone"
+            type="text"
+            placeholder="America/New_York"
+            value={timezone}
+            onChange={(e) => setTimezone(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Use an IANA timezone such as UTC, America/New_York, Europe/London.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="challengeActivityTypes">Valid Activity Types</Label>
+          <textarea
+            id="challengeActivityTypes"
+            value={activityTypesText}
+            onChange={(e) => setActivityTypesText(e.target.value)}
+            rows={5}
+            className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            placeholder={"Ride\nTrailwork"}
+          />
+          <p className="text-xs text-muted-foreground">
+            Enter one activity type per line. These are enforced for new activity submissions.
+          </p>
+        </div>
+
+        <Button
+          onClick={handleSave}
+          disabled={saving || !startDate || !endDate || startDate > endDate || !timezone.trim() || activityTypes.length === 0}
+        >
           {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Save Challenge Dates
+          Save Challenge Settings
         </Button>
 
         {message && (

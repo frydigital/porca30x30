@@ -2,6 +2,25 @@ import { updateDailyActivity } from "@/lib/activities/utils";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+function getDateInTimezone(timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return new Date().toISOString().split("T")[0];
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
 export async function POST(request: Request) {
   const supabase = await createClient();
   
@@ -14,10 +33,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { activity_date, duration_minutes, activity_type, activity_name, notes } = body;
+    const activityDate = typeof activity_date === "string" ? activity_date : "";
+    const activityType = typeof activity_type === "string" ? activity_type.trim() : "";
 
     // Validate required fields
-    if (!activity_date || !duration_minutes || !activity_type || !activity_name) {
+    if (!activityDate || !duration_minutes || !activityType || !activity_name) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(activityDate)) {
+      return NextResponse.json({ error: "Invalid activity date format" }, { status: 400 });
     }
 
     // Validate duration
@@ -26,34 +51,53 @@ export async function POST(request: Request) {
     }
 
     // Validate date against configured challenge range when available
-    const activityDateObj = new Date(activity_date);
     const { data: challengeSettings } = await supabase
       .from("challenge_settings")
-      .select("start_date, end_date")
+      .select("start_date, end_date, timezone, activity_types")
       .eq("id", 1)
       .single();
 
-    if (challengeSettings?.start_date && challengeSettings?.end_date) {
-      const challengeStart = new Date(`${challengeSettings.start_date}T00:00:00Z`);
-      const challengeEnd = new Date(`${challengeSettings.end_date}T23:59:59.999Z`);
+    const configuredTypes = (challengeSettings?.activity_types || [])
+      .filter((type: string | null): type is string => typeof type === "string")
+      .map((type) => type.trim())
+      .filter((type) => type.length > 0);
 
-      if (activityDateObj < challengeStart || activityDateObj > challengeEnd) {
+    if (configuredTypes.length > 0 && !configuredTypes.includes(activityType)) {
+      return NextResponse.json(
+        { error: `Activity type must be one of: ${configuredTypes.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const timezone = challengeSettings?.timezone || "UTC";
+    const todayInTimezone = getDateInTimezone(timezone);
+
+    if (challengeSettings?.start_date && challengeSettings?.end_date) {
+      const challengeStart =
+        challengeSettings.start_date <= challengeSettings.end_date
+          ? challengeSettings.start_date
+          : challengeSettings.end_date;
+      const configuredEnd =
+        challengeSettings.start_date <= challengeSettings.end_date
+          ? challengeSettings.end_date
+          : challengeSettings.start_date;
+      const challengeEnd = configuredEnd < todayInTimezone ? configuredEnd : todayInTimezone;
+
+      if (activityDate < challengeStart || activityDate > challengeEnd) {
         return NextResponse.json(
-          { error: "Activity date must be within the configured challenge dates" },
+          { error: `Activity date must be between ${challengeStart} and ${challengeEnd} (${timezone})` },
           { status: 400 }
         );
       }
     } else {
-      const today = new Date();
-      today.setHours(23, 59, 59, 999);
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      thirtyDaysAgo.setHours(0, 0, 0, 0);
+      const thirtyDaysAgoKey = thirtyDaysAgo.toISOString().split("T")[0];
 
-      if (activityDateObj > today) {
+      if (activityDate > todayInTimezone) {
         return NextResponse.json({ error: "Cannot log future activities" }, { status: 400 });
       }
-      if (activityDateObj < thirtyDaysAgo) {
+      if (activityDate < thirtyDaysAgoKey) {
         return NextResponse.json({ error: "Cannot log activities older than 30 days" }, { status: 400 });
       }
     }
@@ -65,9 +109,9 @@ export async function POST(request: Request) {
         user_id: user.id,
         source: "manual",
         external_activity_id: null,
-        activity_date: activity_date,
+        activity_date: activityDate,
         duration_minutes: Math.round(duration_minutes),
-        activity_type: activity_type,
+        activity_type: activityType,
         activity_name: activity_name,
         notes: notes || null,
       })
@@ -80,7 +124,7 @@ export async function POST(request: Request) {
     }
 
     // Update daily activities
-    await updateDailyActivity(supabase, user.id, activity_date);
+    await updateDailyActivity(supabase, user.id, activityDate);
 
     // Update streak
     await supabase.rpc("update_user_streak", { p_user_id: user.id });

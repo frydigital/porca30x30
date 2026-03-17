@@ -6,13 +6,7 @@ type SearchParams = {
   to?: string;
   minCalcStreak?: string;
   maxCalcStreak?: string;
-};
-
-type StreakRow = {
-  user_id: string;
-  current_streak: number;
-  longest_streak: number;
-  last_activity_date: string | null;
+  requireStartDay?: string;
 };
 
 type DailyActivityRow = {
@@ -59,26 +53,47 @@ function formatDayHeader(dateKey: string) {
   return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
 }
 
-function calculateConsecutiveStreak(
+function calculateWindowValidDays(
   userId: string,
   dateKeys: string[],
   durationByUserDate: Map<string, number>
 ) {
-  let streak = 0;
+  let validDays = 0;
 
-  for (let i = dateKeys.length - 1; i >= 0; i--) {
-    const key = `${userId}|${dateKeys[i]}`;
+  for (const dateKey of dateKeys) {
+    const key = `${userId}|${dateKey}`;
     const duration = durationByUserDate.get(key) ?? 0;
 
     if (duration >= 30) {
-      streak += 1;
-      continue;
+      validDays += 1;
     }
-
-    break;
   }
 
-  return streak;
+  return validDays;
+}
+
+function hasValidFirstDay(
+  userId: string,
+  firstDateKey: string,
+  durationByUserDate: Map<string, number>
+) {
+  const key = `${userId}|${firstDateKey}`;
+  const duration = durationByUserDate.get(key) ?? 0;
+  return duration >= 30;
+}
+
+function calculateChallengeStreak(
+  userId: string,
+  dateKeys: string[],
+  durationByUserDate: Map<string, number>
+) {
+  const startsOnFirstDay = hasValidFirstDay(userId, dateKeys[0], durationByUserDate);
+  if (!startsOnFirstDay) {
+    return { calcStreak: 0, startsOnFirstDay };
+  }
+
+  const validDays = calculateWindowValidDays(userId, dateKeys, durationByUserDate);
+  return { calcStreak: validDays, startsOnFirstDay };
 }
 
 export default async function AdminUsersPage({
@@ -107,6 +122,7 @@ export default async function AdminUsersPage({
 
   const minCalcStreak = params.minCalcStreak ? Number(params.minCalcStreak) : undefined;
   const maxCalcStreak = params.maxCalcStreak ? Number(params.maxCalcStreak) : undefined;
+  const requireStartDay = params.requireStartDay === "1";
 
   const hasMinCalcStreak = Number.isFinite(minCalcStreak);
   const hasMaxCalcStreak = Number.isFinite(maxCalcStreak);
@@ -120,15 +136,12 @@ export default async function AdminUsersPage({
   const startDate = dateKeys[0];
   const endDate = dateKeys[dateKeys.length - 1];
 
-  const [profilesResult, streaksResult, dailyResult, activityTypesResult] =
+  const [profilesResult, dailyResult, activityTypesResult] =
     await Promise.all([
       supabase
         .from("profiles")
         .select("id, email, username, avatar_url, is_public, role, created_at")
         .order("created_at", { ascending: false }),
-      supabase
-        .from("streaks")
-        .select("user_id, current_streak, longest_streak, last_activity_date"),
       supabase
         .from("daily_activities")
         .select("user_id, activity_date, total_duration_minutes")
@@ -142,11 +155,8 @@ export default async function AdminUsersPage({
     ]);
 
   const profiles = profilesResult.data ?? [];
-  const streaks = (streaksResult.data ?? []) as StreakRow[];
   const dailyActivities = (dailyResult.data ?? []) as DailyActivityRow[];
   const activityTypes = (activityTypesResult.data ?? []) as ActivityTypeRow[];
-
-  const streakByUser = new Map(streaks.map((s) => [s.user_id, s]));
 
   const durationByUserDate = new Map<string, number>();
   for (const row of dailyActivities) {
@@ -165,17 +175,21 @@ export default async function AdminUsersPage({
   }
 
   const filteredProfiles = profiles.filter((profile) => {
-    const calculatedStreak = calculateConsecutiveStreak(
+    const { calcStreak, startsOnFirstDay } = calculateChallengeStreak(
       profile.id,
       dateKeys,
       durationByUserDate
     );
 
-    if (hasMinCalcStreak && calculatedStreak < (minCalcStreak as number)) {
+    if (requireStartDay && !startsOnFirstDay) {
       return false;
     }
 
-    if (hasMaxCalcStreak && calculatedStreak > (maxCalcStreak as number)) {
+    if (hasMinCalcStreak && calcStreak < (minCalcStreak as number)) {
+      return false;
+    }
+
+    if (hasMaxCalcStreak && calcStreak > (maxCalcStreak as number)) {
       return false;
     }
 
@@ -188,7 +202,7 @@ export default async function AdminUsersPage({
         <CardTitle>Users Activity Table</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="mb-4 grid gap-3 rounded-md border border-gray-300 p-3 md:grid-cols-5">
+        <form className="mb-4 grid gap-3 rounded-md border border-gray-300 p-3 md:grid-cols-6">
           <div className="space-y-1">
             <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
             <input
@@ -233,6 +247,18 @@ export default async function AdminUsersPage({
               className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
             />
           </div>
+          <div className="flex items-end">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="requireStartDay"
+                value="1"
+                defaultChecked={requireStartDay}
+                className="h-4 w-4 rounded border-input"
+              />
+              Must Start On First Day
+            </label>
+          </div>
           <div className="flex items-end gap-2">
             <button type="submit" className="h-9 rounded-md bg-foreground px-4 text-sm text-background">
               Apply
@@ -251,8 +277,6 @@ export default async function AdminUsersPage({
                 <th className="p-2 text-left font-semibold">Role</th>
                 <th className="p-2 text-left font-semibold">Public</th>
                 <th className="p-2 text-left font-semibold">Calc Streak</th>
-                <th className="p-2 text-left font-semibold">Stored Streak</th>
-                <th className="p-2 text-left font-semibold">Longest</th>
                 <th className="p-2 text-left font-semibold">Created</th>
                 {dateKeys.map((dateKey) => (
                   <th key={dateKey} className="p-2 text-left font-semibold whitespace-nowrap">
@@ -263,8 +287,7 @@ export default async function AdminUsersPage({
             </thead>
             <tbody>
               {filteredProfiles.map((profile) => {
-                const streak = streakByUser.get(profile.id);
-                const calculatedStreak = calculateConsecutiveStreak(
+                const { calcStreak } = calculateChallengeStreak(
                   profile.id,
                   dateKeys,
                   durationByUserDate
@@ -276,9 +299,7 @@ export default async function AdminUsersPage({
                     <td className="p-2 whitespace-nowrap">{profile.username ?? "-"}</td>
                     <td className="p-2 whitespace-nowrap capitalize">{profile.role}</td>
                     <td className="p-2 whitespace-nowrap">{profile.is_public ? "Yes" : "No"}</td>
-                    <td className="p-2 whitespace-nowrap font-semibold">{calculatedStreak}</td>
-                    <td className="p-2 whitespace-nowrap">{streak?.current_streak ?? 0}</td>
-                    <td className="p-2 whitespace-nowrap">{streak?.longest_streak ?? 0}</td>
+                    <td className="p-2 whitespace-nowrap font-semibold">{calcStreak}</td>
                     <td className="p-2 whitespace-nowrap">
                       {new Date(profile.created_at).toLocaleDateString("en-US")}
                     </td>
@@ -300,7 +321,7 @@ export default async function AdminUsersPage({
               })}
               {filteredProfiles.length === 0 && (
                 <tr>
-                  <td colSpan={8 + dateKeys.length} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={6 + dateKeys.length} className="p-6 text-center text-muted-foreground">
                     No users matched the selected filters.
                   </td>
                 </tr>
