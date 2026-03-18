@@ -20,6 +20,7 @@ interface DashboardClientProps {
   activities: Activity[];
   challengeStartDate: string;
   challengeEndDate: string;
+  manualEntryEndDate: string;
   challengeActivityTypes: string[];
 }
 
@@ -28,6 +29,7 @@ export default function DashboardClient({
   activities,
   challengeStartDate,
   challengeEndDate,
+  manualEntryEndDate,
   challengeActivityTypes,
 }: DashboardClientProps) {
   const router = useRouter();
@@ -35,11 +37,12 @@ export default function DashboardClient({
   const todayKey = new Date().toISOString().split("T")[0];
   const minChallengeDate = challengeStartDate <= challengeEndDate ? challengeStartDate : challengeEndDate;
   const maxChallengeDate = challengeStartDate <= challengeEndDate ? challengeEndDate : challengeStartDate;
+  const maxManualDate = manualEntryEndDate < minChallengeDate ? minChallengeDate : manualEntryEndDate;
   const defaultManualDate =
     todayKey < minChallengeDate
       ? minChallengeDate
-      : todayKey > maxChallengeDate
-        ? maxChallengeDate
+      : todayKey > maxManualDate
+        ? maxManualDate
         : todayKey;
 
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -119,17 +122,20 @@ export default function DashboardClient({
   // Generate activity calendar for the configured challenge window
   const generateCalendar = () => {
     const days = [];
-    const start = new Date(`${minChallengeDate}T00:00:00Z`);
-    const end = new Date(`${maxChallengeDate}T00:00:00Z`);
+    const start = new Date(`${minChallengeDate}T00:00:00Z`).getTime();
+    const end = new Date(`${maxChallengeDate}T00:00:00Z`).getTime();
+    const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-    for (const date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+    for (let t = start; t <= end; t += ONE_DAY_MS) {
+      const date = new Date(t);
       const dateStr = date.toISOString().split("T")[0];
+      const utcDate = new Date(`${dateStr}T00:00:00Z`);
 
       const activity = dailyActivities.find(a => a.activity_date === dateStr);
       days.push({
         date: dateStr,
-        dayOfWeek: date.toLocaleDateString("en", { weekday: "short" }),
-        dayOfMonth: date.getDate(),
+        dayOfWeek: utcDate.toLocaleDateString("en", { weekday: "short", timeZone: "UTC" }),
+        dayOfMonth: utcDate.getUTCDate(),
         minutes: activity?.total_duration_minutes || 0,
         isValid: activity?.is_valid || false,
       });
@@ -214,7 +220,7 @@ export default function DashboardClient({
                       value={manualDate}
                       onChange={(e) => setManualDate(e.target.value)}
                       min={minChallengeDate}
-                      max={maxChallengeDate}
+                      max={maxManualDate}
                       required
                     />
                   </div>

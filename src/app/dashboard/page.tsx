@@ -57,7 +57,8 @@ export default async function DashboardPage() {
 
   const challengeStartDate = challengeSettings?.start_date ?? defaults.startDate;
   const configuredEndDate = challengeSettings?.end_date ?? defaults.endDate;
-  const challengeEndDate = configuredEndDate < timezoneToday ? configuredEndDate : timezoneToday;
+  const challengeEndDate = configuredEndDate;
+  const manualEntryEndDate = configuredEndDate < timezoneToday ? configuredEndDate : timezoneToday;
   const challengeActivityTypes =
     challengeSettings?.activity_types?.filter((type: string | null) => typeof type === "string" && type.trim().length > 0)
       ?? ["Ride", "Trailwork"];
@@ -95,6 +96,7 @@ export default async function DashboardPage() {
       activities={recentActivities || []}
       challengeStartDate={challengeStartDate}
       challengeEndDate={challengeEndDate}
+      manualEntryEndDate={manualEntryEndDate}
       challengeActivityTypes={challengeActivityTypes}
     />
   );
