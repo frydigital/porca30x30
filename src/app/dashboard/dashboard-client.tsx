@@ -45,6 +45,8 @@ export default function DashboardClient({
         ? maxManualDate
         : todayKey;
 
+  const activityTypes = challengeActivityTypes.filter((type) => type.trim().length > 0);
+
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Manual entry state
@@ -57,8 +59,31 @@ export default function DashboardClient({
   const [addingManual, setAddingManual] = useState(false);
   const [deletingActivity, setDeletingActivity] = useState<string | null>(null);
 
+  const isManualDateValid =
+    /^\d{4}-\d{2}-\d{2}$/.test(manualDate) &&
+    manualDate >= minChallengeDate &&
+    manualDate <= maxManualDate;
+  const isManualTypeValid = activityTypes.includes(manualType);
+
   const handleAddManualActivity = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isManualDateValid) {
+      setMessage({
+        type: "error",
+        text: `Date must be between ${minChallengeDate} and ${maxManualDate}.`,
+      });
+      return;
+    }
+
+    if (!isManualTypeValid) {
+      setMessage({
+        type: "error",
+        text: "Please choose a valid activity type.",
+      });
+      return;
+    }
+
     setAddingManual(true);
     setMessage(null);
 
@@ -115,9 +140,6 @@ export default function DashboardClient({
     }
     setDeletingActivity(null);
   };
-
-  // Activity type options
-  const activityTypes = challengeActivityTypes;
 
   // Generate activity calendar for the configured challenge window
   const generateCalendar = () => {
@@ -245,6 +267,7 @@ export default function DashboardClient({
                       id="manualType"
                       value={manualType}
                       onChange={(e) => setManualType(e.target.value)}
+                      required
                       className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
                       {activityTypes.map((type) => (
@@ -257,7 +280,7 @@ export default function DashboardClient({
                     <Input
                       id="manualName"
                       type="text"
-                      placeholder="Morning run"
+                      placeholder="Morning ride"
                       value={manualName}
                       onChange={(e) => setManualName(e.target.value)}
                     />
@@ -277,7 +300,7 @@ export default function DashboardClient({
                   <Button type="button" variant="outline" onClick={() => setShowManualEntry(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={addingManual || !manualDuration}>
+                  <Button type="submit" disabled={addingManual || !manualDuration || !isManualDateValid || !isManualTypeValid}>
                     {addingManual && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                     Add Activity
                   </Button>

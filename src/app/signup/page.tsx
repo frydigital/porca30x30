@@ -10,15 +10,44 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_REGEX = /^[A-Za-z0-9 _-]+$/;
+const MIN_PASSWORD_LENGTH = 10;
+
+function validatePassword(password: string) {
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+  }
+  if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecial) {
+    return "Password must include uppercase, lowercase, number, and special character.";
+  }
+
+  return null;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState("");
+  const [name, setName] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const passwordChecks = {
+    length: password.length >= MIN_PASSWORD_LENGTH,
+    uppercase: /[A-Z]/.test(password),
+    lowercase: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    symbol: /[^A-Za-z0-9]/.test(password),
+  };
 
   useEffect(() => {
     const checkSession = async () => {
@@ -40,8 +69,30 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedName = name.trim();
+    const passwordError = validatePassword(password);
+
+    if (!EMAIL_REGEX.test(normalizedEmail)) {
+      setError("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
+    if (passwordError) {
+      setError(passwordError);
+      setLoading(false);
+      return;
+    }
+
+    if (normalizedName && (normalizedName.length < 2 || normalizedName.length > 40 || !NAME_REGEX.test(normalizedName))) {
+      setError("Name must be 2-40 characters and can only include letters, numbers, spaces, hyphens, and underscores.");
+      setLoading(false);
+      return;
+    }
+
+    if (!acceptTerms) {
+      setError("You must accept the terms to create an account.");
       setLoading(false);
       return;
     }
@@ -50,7 +101,12 @@ export default function SignupPage() {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, username }),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          password,
+          name: normalizedName,
+          acceptTerms,
+        }),
       });
 
       const data = await response.json();
@@ -98,16 +154,19 @@ export default function SignupPage() {
           ) : (
             <form onSubmit={handleSignup} className="space-y-8">
               <div className="space-y-2">
-                <Label className="text-muted-foreground" htmlFor="username">Username (optional)</Label>
+                <Label className="text-muted-foreground" htmlFor="name">Name (optional)</Label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    id="username"
+                    id="name"
                     type="text"
-                    placeholder="johndoe"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
                     className="pl-10 shadow-none"
+                    minLength={2}
+                    maxLength={40}
+                    pattern="[A-Za-z0-9 _-]+"
                     disabled={loading}
                   />
                 </div>
@@ -127,6 +186,7 @@ export default function SignupPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 shadow-none"
+                    autoComplete="email"
                     required
                     disabled={loading}
                   />
@@ -140,14 +200,38 @@ export default function SignupPage() {
                   <Input
                     id="password"
                     type="password"
-                    placeholder="min 8 characters"
+                    placeholder="Min 10 chars, upper/lower/number/symbol"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 shadow-none"
+                    minLength={MIN_PASSWORD_LENGTH}
+                    autoComplete="new-password"
                     required
                     disabled={loading}
                   />
                 </div>
+                <div className="space-y-1 text-xs">
+                  <p className={passwordChecks.length ? "text-green-600" : "text-muted-foreground"}>At least 10 characters</p>
+                  <p className={passwordChecks.uppercase ? "text-green-600" : "text-muted-foreground"}>Contains an uppercase letter</p>
+                  <p className={passwordChecks.lowercase ? "text-green-600" : "text-muted-foreground"}>Contains a lowercase letter</p>
+                  <p className={passwordChecks.number ? "text-green-600" : "text-muted-foreground"}>Contains a number</p>
+                  <p className={passwordChecks.symbol ? "text-green-600" : "text-muted-foreground"}>Contains a symbol</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 text-sm">
+                <input
+                  id="acceptTerms"
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-input"
+                  disabled={loading}
+                  required
+                />
+                <Label htmlFor="acceptTerms" className="text-muted-foreground leading-5">
+                  I accept the Terms and Privacy Policy.
+                </Label>
               </div>
 
               {error && (
@@ -157,7 +241,7 @@ export default function SignupPage() {
               <Button
                 type="submit"
                 className="w-full"
-                disabled={loading || !email}
+                disabled={loading || !email || !password || !acceptTerms}
               >
                 {loading ? (
                   <>

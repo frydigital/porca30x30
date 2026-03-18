@@ -10,6 +10,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 128;
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState('');
@@ -39,13 +43,27 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!EMAIL_REGEX.test(normalizedEmail) || normalizedEmail.length > MAX_EMAIL_LENGTH) {
+      setError("Please enter a valid email address.");
+      setLoading(false);
+      return;
+    }
+
+    if (!password || password.length > MAX_PASSWORD_LENGTH) {
+      setError("Please enter a valid password.");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     });
 
     if (error) {
-      setError(error.message);
+      setError("Invalid email or password.");
       setLoading(false);
     } else {
       setLoading(false);
@@ -76,6 +94,8 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 shadow-none"
+                  autoComplete="email"
+                  maxLength={MAX_EMAIL_LENGTH}
                   required
                   disabled={loading}
                 />
@@ -86,10 +106,12 @@ export default function LoginPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="min 8 characters"
+                  placeholder="Your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 shadow-none"
+                  autoComplete="current-password"
+                  maxLength={MAX_PASSWORD_LENGTH}
                   required
                   disabled={loading}
                 />
@@ -109,7 +131,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || !email}
+              disabled={loading || !email || !password}
             >
               {loading ? (
                 <>

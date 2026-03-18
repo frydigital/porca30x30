@@ -2,6 +2,14 @@ import { updateDailyActivity } from "@/lib/activities/utils";
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 
+const SAFE_TEXT_REGEX = /^[A-Za-z0-9 -]+$/;
+const MAX_ACTIVITY_NAME_LENGTH = 80;
+const MAX_NOTES_LENGTH = 240;
+
+function sanitizeText(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function getDateInTimezone(timezone: string) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
@@ -35,9 +43,12 @@ export async function POST(request: Request) {
     const { activity_date, duration_minutes, activity_type, activity_name, notes } = body;
     const activityDate = typeof activity_date === "string" ? activity_date : "";
     const activityType = typeof activity_type === "string" ? activity_type.trim() : "";
+    const activityName = sanitizeText(activity_name);
+    const notesText = sanitizeText(notes);
+    const numericDuration = Number(duration_minutes);
 
     // Validate required fields
-    if (!activityDate || !duration_minutes || !activityType || !activity_name) {
+    if (!activityDate || !activityType || !activityName) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -46,8 +57,28 @@ export async function POST(request: Request) {
     }
 
     // Validate duration
-    if (duration_minutes <= 0 || duration_minutes > 1440) {
+    if (!Number.isFinite(numericDuration) || numericDuration <= 0 || numericDuration > 1440) {
       return NextResponse.json({ error: "Invalid duration" }, { status: 400 });
+    }
+
+    if (
+      activityName.length > MAX_ACTIVITY_NAME_LENGTH ||
+      !SAFE_TEXT_REGEX.test(activityName)
+    ) {
+      return NextResponse.json(
+        { error: "Activity name can only include letters, numbers, spaces, and hyphens" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      notesText.length > MAX_NOTES_LENGTH ||
+      (notesText.length > 0 && !SAFE_TEXT_REGEX.test(notesText))
+    ) {
+      return NextResponse.json(
+        { error: "Notes can only include letters, numbers, spaces, and hyphens" },
+        { status: 400 }
+      );
     }
 
     // Validate date against configured challenge range when available
@@ -110,10 +141,10 @@ export async function POST(request: Request) {
         source: "manual",
         external_activity_id: null,
         activity_date: activityDate,
-        duration_minutes: Math.round(duration_minutes),
+        duration_minutes: Math.round(numericDuration),
         activity_type: activityType,
-        activity_name: activity_name,
-        notes: notes || null,
+        activity_name: activityName,
+        notes: notesText || null,
       })
       .select()
       .single();
