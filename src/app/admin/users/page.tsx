@@ -38,11 +38,12 @@ function getDefaultDateRangeFallback() {
 
 function getDateKeysInRange(from: string, to: string) {
   const keys: string[] = [];
-  const start = new Date(`${from}T00:00:00Z`);
-  const end = new Date(`${to}T00:00:00Z`);
+  const start = new Date(`${from}T00:00:00Z`).getTime();
+  const end = new Date(`${to}T00:00:00Z`).getTime();
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-  for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    keys.push(toDateKey(d));
+  for (let t = start; t <= end; t += ONE_DAY_MS) {
+    keys.push(new Date(t).toISOString().split("T")[0]);
   }
 
   return keys;
@@ -50,7 +51,7 @@ function getDateKeysInRange(from: string, to: string) {
 
 function formatDayHeader(dateKey: string) {
   const date = new Date(`${dateKey}T00:00:00Z`);
-  return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+  return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: "UTC" });
 }
 
 function calculateWindowValidDays(
@@ -279,7 +280,7 @@ export default async function AdminUsersPage({
                 <th className="p-2 text-left font-semibold">Calc Streak</th>
                 <th className="p-2 text-left font-semibold">Created</th>
                 {dateKeys.map((dateKey) => (
-                  <th key={dateKey} className="p-2 text-left font-semibold whitespace-nowrap">
+                  <th key={dateKey} title={dateKey} className="p-2 text-left font-semibold whitespace-nowrap">
                     {formatDayHeader(dateKey)}
                   </th>
                 ))}
