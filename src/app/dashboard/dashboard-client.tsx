@@ -320,21 +320,6 @@ export default function DashboardClient({
               </form>
             </CardContent>
           </Card>
-          {message && (
-            <Alert variant={message.type === "error" ? "destructive" : "default"} >
-              {message.type === "error" ? (
-                <InfoIcon />
-              ) : (
-                <CheckCircle2 />
-              )}
-              <AlertTitle className="uppercase">
-                {message.type}
-              </AlertTitle>
-              <AlertDescription>
-                {message.text}
-              </AlertDescription>
-            </Alert>
-          )}
         </div>
       )}
 
