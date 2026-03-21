@@ -1,5 +1,8 @@
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth/admin";
+import Link from "next/link";
+import FiltersModalClient from "./filters-modal-client";
 import RandomWinnerClient from "./random-winner-client";
 import VerifiedToggleClient from "./verified-toggle-client";
 
@@ -63,6 +66,15 @@ function getDateKeysInRange(from: string, to: string) {
 function formatDayHeader(dateKey: string) {
   const date = new Date(`${dateKey}T00:00:00Z`);
   return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: "UTC" });
+}
+
+function formatDateForTitle(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function calculateWindowValidDays(
@@ -255,9 +267,9 @@ export default async function AdminUsersPage({
 
   const configuredActivityTypes = Array.isArray(challengeSettings?.activity_types)
     ? challengeSettings.activity_types
-        .filter((type: string | null): type is string => typeof type === "string")
-        .map((type: string) => type.trim())
-        .filter((type: string) => type.length > 0)
+      .filter((type: string | null): type is string => typeof type === "string")
+      .map((type: string) => type.trim())
+      .filter((type: string) => type.length > 0)
     : [];
 
   const availableActivityTypes = (configuredActivityTypes.length > 0
@@ -370,6 +382,27 @@ export default async function AdminUsersPage({
     requireStartDay
   );
 
+  const titleParts: string[] = [];
+  titleParts.push(`Showing activities ${formatDateForTitle(from)} to ${formatDateForTitle(to)}`);
+  if (selectedActivityType) {
+    titleParts.push(`Type: ${selectedActivityType}`);
+  }
+  if (verifiedFilter === "1") {
+    titleParts.push("Verified only");
+  } else if (verifiedFilter === "0") {
+    titleParts.push("Unverified only");
+  }
+  if (hasMinCalcStreak) {
+    titleParts.push(`Min streak ${minCalcStreak}`);
+  }
+  if (hasMaxCalcStreak) {
+    titleParts.push(`Max streak ${maxCalcStreak}`);
+  }
+  if (requireStartDay) {
+    titleParts.push("Must start on first day");
+  }
+  const tableContextTitle = titleParts.join(" | ");
+
   const sortHref = (column: string) => {
     const query = new URLSearchParams(baseQuery);
     const nextDir = sortBy === column && sortDir === "asc" ? "desc" : "asc";
@@ -392,117 +425,37 @@ export default async function AdminUsersPage({
     <Card className="border border-gray-300 shadow">
       <CardHeader>
         <CardTitle>Users Activity Table</CardTitle>
+        <p className="text-sm text-muted-foreground">{tableContextTitle}</p>
       </CardHeader>
       <CardContent>
-        <details className="mb-4 rounded-md border border-gray-300" open={hasActiveFilters}>
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Filters</summary>
-          <form className="grid gap-3 border-t border-gray-300 p-3 md:grid-cols-8">
-            <div className="space-y-1">
-              <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
-              <input
-                id="from"
-                name="from"
-                type="date"
-                defaultValue={from}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="to" className="text-xs text-muted-foreground">To</label>
-              <input
-                id="to"
-                name="to"
-                type="date"
-                defaultValue={to}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="minCalcStreak" className="text-xs text-muted-foreground">Min Calc Streak</label>
-              <input
-                id="minCalcStreak"
-                name="minCalcStreak"
-                type="number"
-                min="0"
-                placeholder="0"
-                defaultValue={params.minCalcStreak || ""}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="maxCalcStreak" className="text-xs text-muted-foreground">Max Calc Streak</label>
-              <input
-                id="maxCalcStreak"
-                name="maxCalcStreak"
-                type="number"
-                min="0"
-                placeholder="Any"
-                defaultValue={params.maxCalcStreak || ""}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="activityType" className="text-xs text-muted-foreground">Activity Type</label>
-              <select
-                id="activityType"
-                name="activityType"
-                defaultValue={selectedActivityType}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              >
-                <option value="">All</option>
-                {availableActivityTypes.map((type) => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="verified" className="text-xs text-muted-foreground">Verified</label>
-              <select
-                id="verified"
-                name="verified"
-                defaultValue={verifiedFilter}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-              >
-                <option value="">All</option>
-                <option value="1">Verified</option>
-                <option value="0">Unverified</option>
-              </select>
-            </div>
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="requireStartDay"
-                  value="1"
-                  defaultChecked={requireStartDay}
-                  className="h-4 w-4 rounded border-input"
-                />
-                Must Start On First Day
-              </label>
-            </div>
-            <div className="flex items-end gap-2">
-              <input type="hidden" name="sortBy" value={sortBy} />
-              <input type="hidden" name="sortDir" value={sortDir} />
-              <button type="submit" className="h-9 rounded-md bg-foreground px-4 text-sm text-background">
-                Apply
-              </button>
-              <a href="/admin/users" className="h-9 rounded-md border border-input px-4 py-2 text-sm">
-                Reset
-              </a>
-            </div>
-          </form>
-        </details>
-        <div className="mb-4">
-          <a
-            href={exportHref}
-            className="inline-flex h-9 items-center rounded-md border border-input px-4 text-sm"
-          >
-            Export CSV
-          </a>
+        <div className="mb-4 flex gap-2 justify-end">
+          <FiltersModalClient
+            hasActiveFilters={hasActiveFilters}
+            from={from}
+            to={to}
+            minCalcStreak={params.minCalcStreak || ""}
+            maxCalcStreak={params.maxCalcStreak || ""}
+            activityType={selectedActivityType}
+            verified={verifiedFilter}
+            requireStartDay={requireStartDay}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            availableActivityTypes={availableActivityTypes}
+          />
+          <Button asChild variant="outline">
+            <Link href='/admin/users'>
+              Reset Filters
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={exportHref}>
+              Export CSV
+            </Link>
+          </Button>
+          <RandomWinnerClient
+            users={winnerUsers}
+          />
         </div>
-        <RandomWinnerClient
-          users={winnerUsers}
-        />
         <div className="overflow-x-auto">
           <table className="w-full min-w-400 text-sm border-collapse">
             <thead>
