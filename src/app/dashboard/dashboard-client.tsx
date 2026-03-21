@@ -1,12 +1,15 @@
 "use client";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Activity, DailyActivity, Streak } from "@/lib/types";
 import {
   Check,
+  CheckCircle2,
+  InfoIcon,
   Loader2,
   PlusCircle,
   Trash2
@@ -64,6 +67,11 @@ export default function DashboardClient({
     manualDate >= minChallengeDate &&
     manualDate <= maxManualDate;
   const isManualTypeValid = activityTypes.includes(manualType);
+
+  const handleManualEntryModal = () => {
+    setMessage(null)
+    setShowManualEntry(true)
+  }
 
   const handleAddManualActivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,49 +185,58 @@ export default function DashboardClient({
       <Card className="border-none bg-muted shadow-none">
         <CardContent className="pt-6">
           <div className="flex flex-col items-center gap-2">
-            
-              <p className="text-3xl font-bold text-muted-foreground">
-                {dailyActivities.filter(a => a.is_valid).length} / {calendar.length}
-              </p>
-              <p className="text-3xl font-bold text-muted-foreground">
-                {dailyActivities.reduce((sum, a) => sum + (a.total_duration_minutes || 0), 0)} min
-              </p>
-            
+
+            <p className="text-3xl font-bold text-muted-foreground">
+              {dailyActivities.filter(a => a.is_valid).length} / {calendar.length}
+            </p>
+            <p className="text-3xl font-bold text-muted-foreground">
+              {dailyActivities.reduce((sum, a) => sum + (a.total_duration_minutes || 0), 0)} min
+            </p>
+
           </div>
         </CardContent>
       </Card>
 
-{/* Activity Calendar */}
-       
-            <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-15 gap-1">
-              {calendar.map((day, i) => (
-                <div
-                  key={i}
-                  className={`aspect-square rounded flex flex-col items-center justify-center text-xs ${
-                    day.isValid
-                      ? "bg-green-500 text-white"
-                      : day.minutes > 0
-                      ? "bg-yellow-200 dark:bg-yellow-800"
-                      : "bg-background"
-                  }`}
-                  title={`${day.date}: ${day.minutes} min`}
-                >
-                  <span className="font-medium">{day.dayOfMonth}</span>
-                  {day.isValid && <Check className="w-3 h-3" />}
-                  {day.minutes > 0 && !day.isValid && <span className="text-[10px]">{day.minutes}m</span>}
-                </div>
-              ))}
-            </div>
+      {/* Activity Calendar */}
+
+      <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 lg:grid-cols-15 gap-1">
+        {calendar.map((day, i) => (
+          <div
+            key={i}
+            className={`aspect-square rounded flex flex-col items-center justify-center text-xs ${day.isValid
+              ? "bg-green-500 text-white"
+              : day.minutes > 0
+                ? "bg-yellow-200 dark:bg-yellow-800"
+                : "bg-background"
+              }`}
+            title={`${day.date}: ${day.minutes} min`}
+          >
+            <span className="font-medium">{day.dayOfMonth}</span>
+            {day.isValid && <Check className="w-3 h-3" />}
+            {day.minutes > 0 && !day.isValid && <span className="text-[10px]">{day.minutes}m</span>}
+          </div>
+        ))}
+      </div>
 
       {message && (
-        <div className={`p-4 rounded-lg ${message.type === "success" ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"}`}>
-          {message.text}
-        </div>
+        <Alert variant={message.type === "error" ? "destructive" : "default"} >
+          {message.type === "error" ? (
+            <InfoIcon />
+          ) : (
+            <CheckCircle2 />
+          )}
+          <AlertTitle className="uppercase">
+            {message.type}
+          </AlertTitle>
+          <AlertDescription>
+            {message.text}
+          </AlertDescription>
+        </Alert>
       )}
 
       <Card className="border-dashed border-2 border-gray-300 bg-muted shadow-none">
         <CardContent className="p-0">
-          <Button variant="ghost" className="w-full h-full p-8" onClick={() => setShowManualEntry(true)}>
+          <Button variant="ghost" className="w-full h-full p-8" onClick={() => handleManualEntryModal()}>
             <div className="flex flex-col items-center justify-center text-2xl font-semibold text-gray-500">
               <PlusCircle className="w-8! h-8!" />
               Add Activity
@@ -231,6 +248,21 @@ export default function DashboardClient({
       {showManualEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-lg border border-gray-300 shadow-xl">
+            <CardHeader>
+              <CardTitle className="font-semibold">Add Activity</CardTitle>
+              <CardDescription>Record your daily activities.</CardDescription>
+              {message && message.type === "error" && (
+                <Alert variant="destructive">
+                  <InfoIcon />
+                  <AlertTitle className="uppercase">
+                    Error Submitting Activity
+                  </AlertTitle>
+                  <AlertDescription>
+                    {message.text}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardHeader>
             <CardContent className="pt-6">
               <form onSubmit={handleAddManualActivity} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -307,6 +339,7 @@ export default function DashboardClient({
                 </div>
               </form>
             </CardContent>
+
           </Card>
         </div>
       )}
@@ -318,10 +351,10 @@ export default function DashboardClient({
               key={activity.id}
             >
               <CardContent className="flex items-center justify-between p-8">
-                    <p className="font-medium">{activity.activity_name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {activity.activity_date} • {activity.duration_minutes} min • {activity.activity_type}
-                    </p>
+                <p className="font-medium">{activity.activity_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {activity.activity_date} • {activity.duration_minutes} min • {activity.activity_type}
+                </p>
                 {activity.source === 'manual' && (
                   <Button
                     size="sm"

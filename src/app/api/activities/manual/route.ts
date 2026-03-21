@@ -108,25 +108,39 @@ export async function POST(request: Request) {
         challengeSettings.start_date <= challengeSettings.end_date
           ? challengeSettings.start_date
           : challengeSettings.end_date;
-      const configuredEnd =
+      const challengeEnd =
         challengeSettings.start_date <= challengeSettings.end_date
           ? challengeSettings.end_date
           : challengeSettings.start_date;
-      const challengeEnd = configuredEnd < todayInTimezone ? configuredEnd : todayInTimezone;
 
-      if (activityDate < challengeStart || activityDate > challengeEnd) {
+      if (activityDate < challengeStart || todayInTimezone < challengeStart) {
         return NextResponse.json(
-          { error: `Activity date must be between ${challengeStart} and ${challengeEnd} (${timezone})` },
+          { error: `Challenge does not start until ${challengeStart} (${timezone})` },
           { status: 400 }
         );
       }
+
+      if (activityDate > todayInTimezone) {
+        return NextResponse.json(
+          { error: `Cannot log future activities. Today is ${todayInTimezone} (${timezone})` },
+          { status: 400 }
+        );
+      }
+
+      if (activityDate > challengeEnd) {
+        return NextResponse.json(
+          { error: `Challenge ended on ${challengeEnd} (${timezone})` },
+          { status: 400 }
+        );
+      }
+
     } else {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoKey = thirtyDaysAgo.toISOString().split("T")[0];
 
       if (activityDate > todayInTimezone) {
-        return NextResponse.json({ error: "Cannot log future activities" }, { status: 400 });
+        return NextResponse.json({ error: `Cannot log future activities. Today is ${todayInTimezone}` }, { status: 400 });
       }
       if (activityDate < thirtyDaysAgoKey) {
         return NextResponse.json({ error: "Cannot log activities older than 30 days" }, { status: 400 });
