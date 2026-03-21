@@ -112,14 +112,22 @@ export async function POST(request: Request) {
         challengeSettings.start_date <= challengeSettings.end_date
           ? challengeSettings.end_date
           : challengeSettings.start_date;
-      const challengeEnd = configuredEnd < todayInTimezone ? configuredEnd : todayInTimezone;
+      const challengeEnd = configuredEnd > todayInTimezone ? configuredEnd : todayInTimezone;
 
-      if (activityDate < challengeStart || activityDate > challengeEnd) {
+      if (activityDate < challengeStart) {
         return NextResponse.json(
-          { error: `Activity date must be between ${challengeStart} and ${challengeEnd} (${timezone})` },
+          { error: `Challenge does not start until ${challengeStart} (${timezone})` },
           { status: 400 }
         );
       }
+
+      if (activityDate > challengeEnd) {
+        return NextResponse.json(
+          { error: `Challenge finished on ${challengeEnd} (${timezone})` },
+          { status: 400 }
+        );
+      }
+
     } else {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
