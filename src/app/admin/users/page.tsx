@@ -1,5 +1,10 @@
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth/admin";
+import Link from "next/link";
+import FiltersModalClient from "./filters-modal-client";
+import RandomWinnerClient from "./random-winner-client";
+import VerifiedToggleClient from "./verified-toggle-client";
 
 type SearchParams = {
   from?: string;
@@ -7,6 +12,10 @@ type SearchParams = {
   minCalcStreak?: string;
   maxCalcStreak?: string;
   requireStartDay?: string;
+  activityType?: string;
+  verified?: string;
+  sortBy?: string;
+  sortDir?: string;
 };
 
 type DailyActivityRow = {
@@ -19,6 +28,11 @@ type ActivityTypeRow = {
   user_id: string;
   activity_date: string;
   activity_type: string;
+};
+
+type VerificationRow = {
+  user_id: string;
+  verified: boolean;
 };
 
 function toDateKey(date: Date) {
@@ -54,6 +68,15 @@ function formatDayHeader(dateKey: string) {
   return date.toLocaleDateString("en-US", { month: "numeric", day: "numeric", timeZone: "UTC" });
 }
 
+function formatDateForTitle(dateKey: string) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 function calculateWindowValidDays(
   userId: string,
   dateKeys: string[],
@@ -71,6 +94,21 @@ function calculateWindowValidDays(
   }
 
   return validDays;
+}
+
+function calculateWindowTotalMinutes(
+  userId: string,
+  dateKeys: string[],
+  durationByUserDate: Map<string, number>
+) {
+  let totalMinutes = 0;
+
+  for (const dateKey of dateKeys) {
+    const key = `${userId}|${dateKey}`;
+    totalMinutes += durationByUserDate.get(key) ?? 0;
+  }
+
+  return totalMinutes;
 }
 
 function hasValidFirstDay(
@@ -97,6 +135,41 @@ function calculateChallengeStreak(
   return { calcStreak: validDays, startsOnFirstDay };
 }
 
+function normalizeSortDirection(value: string | undefined) {
+  return value === "asc" ? "asc" : "desc";
+}
+
+function getSortValue(
+  profile: {
+    id: string;
+    email: string;
+    username: string | null;
+    role: string;
+    is_public: boolean;
+    created_at: string;
+  },
+  sortBy: string,
+  calcStreak: number,
+  totalMinutes: number,
+  verified: boolean,
+  durationByUserDate: Map<string, number>
+) {
+  if (sortBy === "email") return profile.email.toLowerCase();
+  if (sortBy === "username") return (profile.username ?? "").toLowerCase();
+  if (sortBy === "role") return profile.role.toLowerCase();
+  if (sortBy === "public") return profile.is_public ? 1 : 0;
+  if (sortBy === "verified") return verified ? 1 : 0;
+  if (sortBy === "calcStreak") return calcStreak;
+  if (sortBy === "totalMinutes") return totalMinutes;
+  if (sortBy === "created") return profile.created_at;
+  if (sortBy.startsWith("day:")) {
+    const dateKey = sortBy.slice(4);
+    return durationByUserDate.get(`${profile.id}|${dateKey}`) ?? 0;
+  }
+
+  return profile.created_at;
+}
+
 export default async function AdminUsersPage({
   searchParams,
 }: {
@@ -107,7 +180,7 @@ export default async function AdminUsersPage({
 
   const { data: challengeSettings } = await supabase
     .from("challenge_settings")
-    .select("start_date, end_date")
+    .select("start_date, end_date, activity_types")
     .eq("id", 1)
     .single();
 
@@ -124,6 +197,10 @@ export default async function AdminUsersPage({
   const minCalcStreak = params.minCalcStreak ? Number(params.minCalcStreak) : undefined;
   const maxCalcStreak = params.maxCalcStreak ? Number(params.maxCalcStreak) : undefined;
   const requireStartDay = params.requireStartDay === "1";
+  const selectedActivityType = (params.activityType ?? "").trim();
+  const verifiedFilter = params.verified === "1" || params.verified === "0" ? params.verified : "";
+  const sortBy = params.sortBy ?? "created";
+  const sortDir = normalizeSortDirection(params.sortDir);
 
   const hasMinCalcStreak = Number.isFinite(minCalcStreak);
   const hasMaxCalcStreak = Number.isFinite(maxCalcStreak);
@@ -137,7 +214,7 @@ export default async function AdminUsersPage({
   const startDate = dateKeys[0];
   const endDate = dateKeys[dateKeys.length - 1];
 
-  const [profilesResult, dailyResult, activityTypesResult] =
+  const [profilesResult, dailyResult, activityTypesResult, verificationsResult] =
     await Promise.all([
       supabase
         .from("profiles")
@@ -153,11 +230,15 @@ export default async function AdminUsersPage({
         .select("user_id, activity_date, activity_type")
         .gte("activity_date", startDate)
         .lte("activity_date", endDate),
+      supabase
+        .from("participant_verifications")
+        .select("user_id, verified"),
     ]);
 
   const profiles = profilesResult.data ?? [];
   const dailyActivities = (dailyResult.data ?? []) as DailyActivityRow[];
   const activityTypes = (activityTypesResult.data ?? []) as ActivityTypeRow[];
+  const verifications = (verificationsResult.data ?? []) as VerificationRow[];
 
   const durationByUserDate = new Map<string, number>();
   for (const row of dailyActivities) {
@@ -168,11 +249,37 @@ export default async function AdminUsersPage({
   }
 
   const typeByUserDate = new Map<string, Set<string>>();
+  const availableTypeSet = new Set<string>();
+  const userIdsByType = new Map<string, Set<string>>();
   for (const row of activityTypes) {
     const key = `${row.user_id}|${row.activity_date}`;
     const existing = typeByUserDate.get(key) ?? new Set<string>();
     existing.add(row.activity_type);
     typeByUserDate.set(key, existing);
+
+    if (row.activity_type) {
+      availableTypeSet.add(row.activity_type);
+      const users = userIdsByType.get(row.activity_type) ?? new Set<string>();
+      users.add(row.user_id);
+      userIdsByType.set(row.activity_type, users);
+    }
+  }
+
+  const configuredActivityTypes = Array.isArray(challengeSettings?.activity_types)
+    ? challengeSettings.activity_types
+      .filter((type: string | null): type is string => typeof type === "string")
+      .map((type: string) => type.trim())
+      .filter((type: string) => type.length > 0)
+    : [];
+
+  const availableActivityTypes = (configuredActivityTypes.length > 0
+    ? configuredActivityTypes
+    : Array.from(availableTypeSet)
+  ).sort((a, b) => a.localeCompare(b));
+
+  const verifiedByUser = new Map<string, boolean>();
+  for (const row of verifications) {
+    verifiedByUser.set(row.user_id, Boolean(row.verified));
   }
 
   const filteredProfiles = profiles.filter((profile) => {
@@ -194,101 +301,190 @@ export default async function AdminUsersPage({
       return false;
     }
 
+    if (selectedActivityType) {
+      const matchingUsers = userIdsByType.get(selectedActivityType);
+      if (!matchingUsers || !matchingUsers.has(profile.id)) {
+        return false;
+      }
+    }
+
+    const isVerified = verifiedByUser.get(profile.id) ?? false;
+    if (verifiedFilter === "1" && !isVerified) {
+      return false;
+    }
+    if (verifiedFilter === "0" && isVerified) {
+      return false;
+    }
+
     return true;
   });
+
+  const sortedProfiles = [...filteredProfiles].sort((a, b) => {
+    const aCalcStreak = calculateChallengeStreak(a.id, dateKeys, durationByUserDate).calcStreak;
+    const bCalcStreak = calculateChallengeStreak(b.id, dateKeys, durationByUserDate).calcStreak;
+    const aTotalMinutes = calculateWindowTotalMinutes(a.id, dateKeys, durationByUserDate);
+    const bTotalMinutes = calculateWindowTotalMinutes(b.id, dateKeys, durationByUserDate);
+    const aVerified = verifiedByUser.get(a.id) ?? false;
+    const bVerified = verifiedByUser.get(b.id) ?? false;
+
+    const aValue = getSortValue(a, sortBy, aCalcStreak, aTotalMinutes, aVerified, durationByUserDate);
+    const bValue = getSortValue(b, sortBy, bCalcStreak, bTotalMinutes, bVerified, durationByUserDate);
+
+    if (aValue === bValue) {
+      return a.email.localeCompare(b.email);
+    }
+
+    const directionMultiplier = sortDir === "asc" ? 1 : -1;
+    if (typeof aValue === "number" && typeof bValue === "number") {
+      return (aValue - bValue) * directionMultiplier;
+    }
+
+    return String(aValue).localeCompare(String(bValue)) * directionMultiplier;
+  });
+
+  const winnerUsers = sortedProfiles.map((profile) => {
+    const { calcStreak } = calculateChallengeStreak(
+      profile.id,
+      dateKeys,
+      durationByUserDate
+    );
+    const totalMinutes = calculateWindowTotalMinutes(
+      profile.id,
+      dateKeys,
+      durationByUserDate
+    );
+
+    return {
+      id: profile.id,
+      label: profile.username || profile.email,
+      email: profile.email,
+      calcStreak,
+      totalMinutes,
+    };
+  });
+
+  const baseQuery = new URLSearchParams();
+  baseQuery.set("from", from);
+  baseQuery.set("to", to);
+  if (hasMinCalcStreak) baseQuery.set("minCalcStreak", String(minCalcStreak));
+  if (hasMaxCalcStreak) baseQuery.set("maxCalcStreak", String(maxCalcStreak));
+  if (requireStartDay) baseQuery.set("requireStartDay", "1");
+  if (selectedActivityType) baseQuery.set("activityType", selectedActivityType);
+  if (verifiedFilter) baseQuery.set("verified", verifiedFilter);
+
+  const hasActiveFilters = Boolean(
+    params.from ||
+    params.to ||
+    params.minCalcStreak ||
+    params.maxCalcStreak ||
+    selectedActivityType ||
+    verifiedFilter ||
+    requireStartDay
+  );
+
+  const titleParts: string[] = [];
+  titleParts.push(`Showing activities ${formatDateForTitle(from)} to ${formatDateForTitle(to)}`);
+  if (selectedActivityType) {
+    titleParts.push(`Type: ${selectedActivityType}`);
+  }
+  if (verifiedFilter === "1") {
+    titleParts.push("Verified only");
+  } else if (verifiedFilter === "0") {
+    titleParts.push("Unverified only");
+  }
+  if (hasMinCalcStreak) {
+    titleParts.push(`Min streak ${minCalcStreak}`);
+  }
+  if (hasMaxCalcStreak) {
+    titleParts.push(`Max streak ${maxCalcStreak}`);
+  }
+  if (requireStartDay) {
+    titleParts.push("Must start on first day");
+  }
+  const tableContextTitle = titleParts.join(" | ");
+
+  const sortHref = (column: string) => {
+    const query = new URLSearchParams(baseQuery);
+    const nextDir = sortBy === column && sortDir === "asc" ? "desc" : "asc";
+    query.set("sortBy", column);
+    query.set("sortDir", nextDir);
+    return `/admin/users?${query.toString()}`;
+  };
+
+  const sortIndicator = (column: string) => {
+    if (sortBy !== column) return "";
+    return sortDir === "asc" ? " ▲" : " ▼";
+  };
+
+  const exportQuery = new URLSearchParams(baseQuery);
+  exportQuery.set("sortBy", sortBy);
+  exportQuery.set("sortDir", sortDir);
+  const exportHref = `/api/admin/users/export?${exportQuery.toString()}`;
 
   return (
     <Card className="border border-gray-300 shadow">
       <CardHeader>
         <CardTitle>Users Activity Table</CardTitle>
+        <p className="text-sm text-muted-foreground">{tableContextTitle}</p>
       </CardHeader>
       <CardContent>
-        <form className="mb-4 grid gap-3 rounded-md border border-gray-300 p-3 md:grid-cols-6">
-          <div className="space-y-1">
-            <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
-            <input
-              id="from"
-              name="from"
-              type="date"
-              defaultValue={from}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="to" className="text-xs text-muted-foreground">To</label>
-            <input
-              id="to"
-              name="to"
-              type="date"
-              defaultValue={to}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="minCalcStreak" className="text-xs text-muted-foreground">Min Calc Streak</label>
-            <input
-              id="minCalcStreak"
-              name="minCalcStreak"
-              type="number"
-              min="0"
-              placeholder="0"
-              defaultValue={params.minCalcStreak || ""}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="maxCalcStreak" className="text-xs text-muted-foreground">Max Calc Streak</label>
-            <input
-              id="maxCalcStreak"
-              name="maxCalcStreak"
-              type="number"
-              min="0"
-              placeholder="Any"
-              defaultValue={params.maxCalcStreak || ""}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="requireStartDay"
-                value="1"
-                defaultChecked={requireStartDay}
-                className="h-4 w-4 rounded border-input"
-              />
-              Must Start On First Day
-            </label>
-          </div>
-          <div className="flex items-end gap-2">
-            <button type="submit" className="h-9 rounded-md bg-foreground px-4 text-sm text-background">
-              Apply
-            </button>
-            <a href="/admin/users" className="h-9 rounded-md border border-input px-4 py-2 text-sm">
-              Reset
-            </a>
-          </div>
-        </form>
+        <div className="mb-4 flex gap-2 justify-end">
+          <FiltersModalClient
+            hasActiveFilters={hasActiveFilters}
+            from={from}
+            to={to}
+            minCalcStreak={params.minCalcStreak || ""}
+            maxCalcStreak={params.maxCalcStreak || ""}
+            activityType={selectedActivityType}
+            verified={verifiedFilter}
+            requireStartDay={requireStartDay}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            availableActivityTypes={availableActivityTypes}
+          />
+          <Button asChild variant="outline">
+            <Link href='/admin/users'>
+              Reset Filters
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href={exportHref}>
+              Export CSV
+            </Link>
+          </Button>
+          <RandomWinnerClient
+            users={winnerUsers}
+          />
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-400 text-sm border-collapse">
             <thead>
               <tr className="border-b bg-muted/50">
-                <th className="p-2 text-left font-semibold">Email</th>
-                <th className="p-2 text-left font-semibold">Username</th>
-                <th className="p-2 text-left font-semibold">Role</th>
-                <th className="p-2 text-left font-semibold">Public</th>
-                <th className="p-2 text-left font-semibold">Calc Streak</th>
-                <th className="p-2 text-left font-semibold">Created</th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("email")}>Email{sortIndicator("email")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("username")}>Username{sortIndicator("username")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("role")}>Role{sortIndicator("role")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("public")}>Public{sortIndicator("public")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("verified")}>Verified{sortIndicator("verified")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("calcStreak")}>Calc Streak{sortIndicator("calcStreak")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("totalMinutes")}>Total Minutes{sortIndicator("totalMinutes")}</a></th>
+                <th className="p-2 text-left font-semibold"><a href={sortHref("created")}>Created{sortIndicator("created")}</a></th>
                 {dateKeys.map((dateKey) => (
                   <th key={dateKey} title={dateKey} className="p-2 text-left font-semibold whitespace-nowrap">
-                    {formatDayHeader(dateKey)}
+                    <a href={sortHref(`day:${dateKey}`)}>
+                      {formatDayHeader(dateKey)}{sortIndicator(`day:${dateKey}`)}
+                    </a>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filteredProfiles.map((profile) => {
+              {sortedProfiles.map((profile) => {
                 const { calcStreak } = calculateChallengeStreak(
+                  profile.id,
+                  dateKeys,
+                  durationByUserDate
+                );
+                const totalMinutes = calculateWindowTotalMinutes(
                   profile.id,
                   dateKeys,
                   durationByUserDate
@@ -300,7 +496,14 @@ export default async function AdminUsersPage({
                     <td className="p-2 whitespace-nowrap">{profile.username ?? "-"}</td>
                     <td className="p-2 whitespace-nowrap capitalize">{profile.role}</td>
                     <td className="p-2 whitespace-nowrap">{profile.is_public ? "Yes" : "No"}</td>
+                    <td className="p-2 whitespace-nowrap">
+                      <VerifiedToggleClient
+                        userId={profile.id}
+                        initialVerified={verifiedByUser.get(profile.id) ?? false}
+                      />
+                    </td>
                     <td className="p-2 whitespace-nowrap font-semibold">{calcStreak}</td>
+                    <td className="p-2 whitespace-nowrap">{totalMinutes}m</td>
                     <td className="p-2 whitespace-nowrap">
                       {new Date(profile.created_at).toLocaleDateString("en-US")}
                     </td>
@@ -320,9 +523,9 @@ export default async function AdminUsersPage({
                   </tr>
                 );
               })}
-              {filteredProfiles.length === 0 && (
+              {sortedProfiles.length === 0 && (
                 <tr>
-                  <td colSpan={6 + dateKeys.length} className="p-6 text-center text-muted-foreground">
+                  <td colSpan={8 + dateKeys.length} className="p-6 text-center text-muted-foreground">
                     No users matched the selected filters.
                   </td>
                 </tr>
