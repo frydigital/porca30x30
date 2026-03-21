@@ -2,7 +2,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Activity, DailyActivity, Streak } from "@/lib/types";
@@ -249,7 +249,8 @@ export default function DashboardClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-lg border border-gray-300 shadow-xl">
             <CardHeader>
-              <CardTitle>Add Activity</CardTitle>
+              <CardTitle className="font-semibold">Add Activity</CardTitle>
+              <CardDescription>Record your daily activities.</CardDescription>
               {message && message.type === "error" && (
                 <Alert variant="destructive">
                   <InfoIcon />
