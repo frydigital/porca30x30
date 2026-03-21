@@ -10,6 +10,7 @@ type SearchParams = {
   maxCalcStreak?: string;
   requireStartDay?: string;
   activityType?: string;
+  verified?: string;
   sortBy?: string;
   sortDir?: string;
 };
@@ -167,7 +168,7 @@ export default async function AdminUsersPage({
 
   const { data: challengeSettings } = await supabase
     .from("challenge_settings")
-    .select("start_date, end_date")
+    .select("start_date, end_date, activity_types")
     .eq("id", 1)
     .single();
 
@@ -185,6 +186,7 @@ export default async function AdminUsersPage({
   const maxCalcStreak = params.maxCalcStreak ? Number(params.maxCalcStreak) : undefined;
   const requireStartDay = params.requireStartDay === "1";
   const selectedActivityType = (params.activityType ?? "").trim();
+  const verifiedFilter = params.verified === "1" || params.verified === "0" ? params.verified : "";
   const sortBy = params.sortBy ?? "created";
   const sortDir = normalizeSortDirection(params.sortDir);
 
@@ -251,9 +253,17 @@ export default async function AdminUsersPage({
     }
   }
 
-  const availableActivityTypes = Array.from(availableTypeSet).sort((a, b) =>
-    a.localeCompare(b)
-  );
+  const configuredActivityTypes = Array.isArray(challengeSettings?.activity_types)
+    ? challengeSettings.activity_types
+        .filter((type: string | null): type is string => typeof type === "string")
+        .map((type: string) => type.trim())
+        .filter((type: string) => type.length > 0)
+    : [];
+
+  const availableActivityTypes = (configuredActivityTypes.length > 0
+    ? configuredActivityTypes
+    : Array.from(availableTypeSet)
+  ).sort((a, b) => a.localeCompare(b));
 
   const verifiedByUser = new Map<string, boolean>();
   for (const row of verifications) {
@@ -284,6 +294,14 @@ export default async function AdminUsersPage({
       if (!matchingUsers || !matchingUsers.has(profile.id)) {
         return false;
       }
+    }
+
+    const isVerified = verifiedByUser.get(profile.id) ?? false;
+    if (verifiedFilter === "1" && !isVerified) {
+      return false;
+    }
+    if (verifiedFilter === "0" && isVerified) {
+      return false;
     }
 
     return true;
@@ -340,6 +358,17 @@ export default async function AdminUsersPage({
   if (hasMaxCalcStreak) baseQuery.set("maxCalcStreak", String(maxCalcStreak));
   if (requireStartDay) baseQuery.set("requireStartDay", "1");
   if (selectedActivityType) baseQuery.set("activityType", selectedActivityType);
+  if (verifiedFilter) baseQuery.set("verified", verifiedFilter);
+
+  const hasActiveFilters = Boolean(
+    params.from ||
+    params.to ||
+    params.minCalcStreak ||
+    params.maxCalcStreak ||
+    selectedActivityType ||
+    verifiedFilter ||
+    requireStartDay
+  );
 
   const sortHref = (column: string) => {
     const query = new URLSearchParams(baseQuery);
@@ -354,94 +383,123 @@ export default async function AdminUsersPage({
     return sortDir === "asc" ? " ▲" : " ▼";
   };
 
+  const exportQuery = new URLSearchParams(baseQuery);
+  exportQuery.set("sortBy", sortBy);
+  exportQuery.set("sortDir", sortDir);
+  const exportHref = `/api/admin/users/export?${exportQuery.toString()}`;
+
   return (
     <Card className="border border-gray-300 shadow">
       <CardHeader>
         <CardTitle>Users Activity Table</CardTitle>
       </CardHeader>
       <CardContent>
-        <form className="mb-4 grid gap-3 rounded-md border border-gray-300 p-3 md:grid-cols-7">
-          <div className="space-y-1">
-            <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
-            <input
-              id="from"
-              name="from"
-              type="date"
-              defaultValue={from}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="to" className="text-xs text-muted-foreground">To</label>
-            <input
-              id="to"
-              name="to"
-              type="date"
-              defaultValue={to}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="minCalcStreak" className="text-xs text-muted-foreground">Min Calc Streak</label>
-            <input
-              id="minCalcStreak"
-              name="minCalcStreak"
-              type="number"
-              min="0"
-              placeholder="0"
-              defaultValue={params.minCalcStreak || ""}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="maxCalcStreak" className="text-xs text-muted-foreground">Max Calc Streak</label>
-            <input
-              id="maxCalcStreak"
-              name="maxCalcStreak"
-              type="number"
-              min="0"
-              placeholder="Any"
-              defaultValue={params.maxCalcStreak || ""}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="activityType" className="text-xs text-muted-foreground">Activity Type</label>
-            <select
-              id="activityType"
-              name="activityType"
-              defaultValue={selectedActivityType}
-              className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
-            >
-              <option value="">All</option>
-              {availableActivityTypes.map((type) => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm">
+        <details className="mb-4 rounded-md border border-gray-300" open={hasActiveFilters}>
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Filters</summary>
+          <form className="grid gap-3 border-t border-gray-300 p-3 md:grid-cols-8">
+            <div className="space-y-1">
+              <label htmlFor="from" className="text-xs text-muted-foreground">From</label>
               <input
-                type="checkbox"
-                name="requireStartDay"
-                value="1"
-                defaultChecked={requireStartDay}
-                className="h-4 w-4 rounded border-input"
+                id="from"
+                name="from"
+                type="date"
+                defaultValue={from}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
               />
-              Must Start On First Day
-            </label>
-          </div>
-          <div className="flex items-end gap-2">
-            <input type="hidden" name="sortBy" value={sortBy} />
-            <input type="hidden" name="sortDir" value={sortDir} />
-            <button type="submit" className="h-9 rounded-md bg-foreground px-4 text-sm text-background">
-              Apply
-            </button>
-            <a href="/admin/users" className="h-9 rounded-md border border-input px-4 py-2 text-sm">
-              Reset
-            </a>
-          </div>
-        </form>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="to" className="text-xs text-muted-foreground">To</label>
+              <input
+                id="to"
+                name="to"
+                type="date"
+                defaultValue={to}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="minCalcStreak" className="text-xs text-muted-foreground">Min Calc Streak</label>
+              <input
+                id="minCalcStreak"
+                name="minCalcStreak"
+                type="number"
+                min="0"
+                placeholder="0"
+                defaultValue={params.minCalcStreak || ""}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="maxCalcStreak" className="text-xs text-muted-foreground">Max Calc Streak</label>
+              <input
+                id="maxCalcStreak"
+                name="maxCalcStreak"
+                type="number"
+                min="0"
+                placeholder="Any"
+                defaultValue={params.maxCalcStreak || ""}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="activityType" className="text-xs text-muted-foreground">Activity Type</label>
+              <select
+                id="activityType"
+                name="activityType"
+                defaultValue={selectedActivityType}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              >
+                <option value="">All</option>
+                {availableActivityTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="verified" className="text-xs text-muted-foreground">Verified</label>
+              <select
+                id="verified"
+                name="verified"
+                defaultValue={verifiedFilter}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm"
+              >
+                <option value="">All</option>
+                <option value="1">Verified</option>
+                <option value="0">Unverified</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="requireStartDay"
+                  value="1"
+                  defaultChecked={requireStartDay}
+                  className="h-4 w-4 rounded border-input"
+                />
+                Must Start On First Day
+              </label>
+            </div>
+            <div className="flex items-end gap-2">
+              <input type="hidden" name="sortBy" value={sortBy} />
+              <input type="hidden" name="sortDir" value={sortDir} />
+              <button type="submit" className="h-9 rounded-md bg-foreground px-4 text-sm text-background">
+                Apply
+              </button>
+              <a href="/admin/users" className="h-9 rounded-md border border-input px-4 py-2 text-sm">
+                Reset
+              </a>
+            </div>
+          </form>
+        </details>
+        <div className="mb-4">
+          <a
+            href={exportHref}
+            className="inline-flex h-9 items-center rounded-md border border-input px-4 text-sm"
+          >
+            Export CSV
+          </a>
+        </div>
         <RandomWinnerClient
           users={winnerUsers}
         />
