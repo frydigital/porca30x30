@@ -2,7 +2,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Activity, DailyActivity, Streak } from "@/lib/types";
@@ -67,6 +67,11 @@ export default function DashboardClient({
     manualDate >= minChallengeDate &&
     manualDate <= maxManualDate;
   const isManualTypeValid = activityTypes.includes(manualType);
+
+  const handleManualEntryModal = () => {
+    setMessage(null)
+    setShowManualEntry(true)
+  }
 
   const handleAddManualActivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,7 +236,7 @@ export default function DashboardClient({
 
       <Card className="border-dashed border-2 border-gray-300 bg-muted shadow-none">
         <CardContent className="p-0">
-          <Button variant="ghost" className="w-full h-full p-8" onClick={() => setShowManualEntry(true)}>
+          <Button variant="ghost" className="w-full h-full p-8" onClick={() => handleManualEntryModal()}>
             <div className="flex flex-col items-center justify-center text-2xl font-semibold text-gray-500">
               <PlusCircle className="w-8! h-8!" />
               Add Activity
@@ -243,6 +248,20 @@ export default function DashboardClient({
       {showManualEntry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <Card className="w-full max-w-lg border border-gray-300 shadow-xl">
+            <CardHeader>
+              <CardTitle>Add Activity</CardTitle>
+              {message && message.type === "error" && (
+                <Alert variant="destructive">
+                  <InfoIcon />
+                  <AlertTitle className="uppercase">
+                    Error Submitting Activity
+                  </AlertTitle>
+                  <AlertDescription>
+                    {message.text}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardHeader>
             <CardContent className="pt-6">
               <form onSubmit={handleAddManualActivity} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -319,6 +338,7 @@ export default function DashboardClient({
                 </div>
               </form>
             </CardContent>
+
           </Card>
         </div>
       )}

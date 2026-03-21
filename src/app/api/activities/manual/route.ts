@@ -113,7 +113,7 @@ export async function POST(request: Request) {
           ? challengeSettings.end_date
           : challengeSettings.start_date;
 
-      if (activityDate < challengeStart) {
+      if (activityDate < challengeStart || todayInTimezone < challengeStart) {
         return NextResponse.json(
           { error: `Challenge does not start until ${challengeStart} (${timezone})` },
           { status: 400 }
