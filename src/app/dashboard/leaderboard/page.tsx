@@ -162,7 +162,6 @@ export default async function Leaderboard() {
       ),
       };
     })
-    .filter((entry) => entry.total_valid_days > 0)
     .sort((a, b) => {
       if (b.current_streak !== a.current_streak) {
         return b.current_streak - a.current_streak;
