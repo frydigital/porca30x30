@@ -456,10 +456,12 @@ export default async function AdminUsersPage({
             users={winnerUsers}
           />
         </div>
-        <div className="overflow-x-auto">
+  <div
+          className="h-[calc(100vh-260px)] min-h-80 overflow-auto rounded-md"
+        >
           <table className="w-full min-w-400 text-sm border-collapse">
-            <thead>
-              <tr className="border-b bg-muted/50">
+            <thead className="sticky top-0 z-20 bg-muted/95">
+              <tr className="border-b">
                 <th className="p-2 text-left font-semibold"><a href={sortHref("email")}>Email{sortIndicator("email")}</a></th>
                 <th className="p-2 text-left font-semibold"><a href={sortHref("username")}>Username{sortIndicator("username")}</a></th>
                 <th className="p-2 text-left font-semibold"><a href={sortHref("role")}>Role{sortIndicator("role")}</a></th>
